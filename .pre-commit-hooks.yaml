@@ -1,0 +1,6 @@
+- id: qualitor
+  name: Run tests and coverage on a python module
+  description: on a commit it will run all related tests
+  entry: qualitor
+  language: python
+  types: [file, python]
