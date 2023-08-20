@@ -85,6 +85,28 @@ def cli(
     | None = None,
     doc: str | None = None,
 ):
+    """decorator for cli scripts
+
+    add_arguments: callable (with parser ArgumentParser argument)
+                        to add arguments
+    process_options: callable (with options Namespace and ErrorFn function)
+                        to process options
+
+    Example:
+        def add_arguments(parser: argparse.ArgumentParser):
+            parser.add_argument("-x")
+
+        def process_options(options: argparse.Namespace, error: ErrorFn):
+            pass
+
+        @cli(add_arguments, process_options)
+        def main(options):
+            pass
+
+        if __name__ == "__main__":
+            main()
+    """
+
     @functools.wraps(cli)
     def _fn(main: Callable[[argparse.Namespace], Any]):
         @functools.wraps(main)
