@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 from pathlib import Path
 
 
@@ -12,7 +13,7 @@ def indent(txt: str, pre: str = " " * 2) -> str:
         last_eol = "\n"
         txt = txt[:-1]
     else:
-        last_eol = ""
+        last_eol = "\n"
 
     result = pre + txt.replace("\n", "\n" + pre) + last_eol
     return result if result.strip() else result.strip()
@@ -34,7 +35,7 @@ def lstrip(txt: str, ending: str | list[str]) -> str:
 def rstrip(txt: str, starting: str | list[str]) -> str:
     startings = starting if isinstance(starting, list) else [starting]
     for right in startings:
-        txt = txt[len(right) :] if txt.endswith(right) else txt
+        txt = txt[: -len(right)] if txt.endswith(right) else txt
     return txt
 
 
@@ -42,11 +43,11 @@ def strip(txt: str, sub: str | list[str]) -> str:
     return lstrip(rstrip(txt, sub), sub)
 
 
-def loadmod(path: Path) -> Any:
+def loadmod(path: Path, name: str | None = None) -> Any:
     from importlib.util import module_from_spec, spec_from_file_location
 
     module = None
-    spec = spec_from_file_location(Path(path).name, Path(path))
+    spec = spec_from_file_location(name or Path(path).name, Path(path))
     if spec:
         module = module_from_spec(spec)
     if module and spec and spec.loader:
