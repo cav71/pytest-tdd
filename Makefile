@@ -14,6 +14,7 @@ tests:
 
 .PHONY: coverage
 coverage:
+	rm -rf build/coverage build/junit
 	PYTHONPATH=src py.test -vvs \
        --cov=$(PACKAGE) \
        --cov-report=html:build/coverage \
