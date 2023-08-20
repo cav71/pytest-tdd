@@ -1,6 +1,6 @@
-- id: qualitor
-  name: Run tests and coverage on a python module
-  description: on a commit it will run all related tests
-  entry: qualitor
+- id: pytest-tdd
+  name: test-tdd 
+  description: Run tests on a module on commit
+  entry: pytest_tdd.script
   language: python
   types: [file, python]
