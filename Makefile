@@ -1,5 +1,9 @@
 help:
-	@echo "make build"
+	@echo "make tests"
 
 build:
-	rm -rf dist && python -m build -n .
+	rm -rf dist && python -m build .
+
+.PHONY: tests
+tests:
+	PYTHONPATH=src py.test -vvs tests
