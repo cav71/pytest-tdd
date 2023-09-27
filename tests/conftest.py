@@ -19,6 +19,7 @@ def help_wrapper():
                     internal = {
                         "_jb_pytest_runner.py",
                         "py.test",
+                        "pytest",
                     }
                     if parser.prog in internal:
                         parser.prog = fn.__name__
