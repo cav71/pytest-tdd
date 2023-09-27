@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - release/*
+
+env:
+  PACKAGE: hatch_ci
+  XTARGET: '3.11'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11",]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Dump env
+        shell: bash
+        env:
+          GITHUB_DUMP: ${{ toJson(github) }}
+        run: |
+          echo "github env:"
+          echo "$GITHUB_DUMP"
+
+      - name: Set up Python interpreter [${{ matrix.python-version }}]
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies for publish
+        shell: bash
+        run: |
+            python -m pip install --upgrade pip
+            pip install setuptools build wheel twine
+            pip install -r tests/requirements.txt
+
+      - name: Runtime checks (pytest, coverage etc.)
+        shell: bash
+        env:
+          PYTHONPATH: src
+          OUTDIR: build/qa-${{ matrix.python-version }}-${{ matrix.os}}
+        run: |
+          py.test \
+              --cov=${{ env.PACKAGE }} \
+              --cov-report=html:$OUTDIR/coverage --cov-report=xml:$OUTDIR/coverage.xml \
+              --junitxml=$OUTDIR/junit/junit.xml --html=$OUTDIR/junit/junit.html --self-contained-html \
+            tests
+          touch build/.keepme
+
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v3
+        if: ${{ matrix.python-version == env.XTARGET }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          files: build/qa-${{ matrix.python-version }}-${{ matrix.os }}/coverage.xml
+          verbose: true
+          override_branch: ${{ github.ref_name }}
+
+      - name: Build wheel packages
+        env:
+          GITHUB_DUMP: ${{ toJson(github) }}
+        run: |
+          python -m build
+
+      - name: Publish packages to pypi (release)
+        shell: bash
+        env:
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: |
+          twine upload --skip-existing --non-interactive --repository pypi dist/*
+  
