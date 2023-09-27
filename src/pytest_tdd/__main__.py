@@ -1,40 +1,71 @@
+"""given a python module execute related tests.
+
+Example:
+    $> pytest-tdd \\
+         --src src --tests tests \\
+         src/mylibrary/mysubdir/hello.py
+    or (the default)
+    $> pytest-tdd src/mylibrary/mysubdir/hello.py
+
+    This will look up (and run if found) the following tests:
+    - tests/mylibrary/subdir/test_hello.py
+    - tests/test_hello.py
+"""
+import argparse
 import logging
 from pathlib import Path
-from qualitor import api, cli
+from pytest_tdd import misc, cli
 
 
 log = logging.getLogger(__name__)
 
 
-def parse_args(args=None):
-    parser = cli.ArgumentParser(doc=__doc__)
-
+def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("source", type=Path, help="source to run tests for")
-    parser.add_argument("-t", "--test-dir", default=Path.cwd() / "tests", type=Path, help="root of tests")
-    
-    options = parser.parse_args(args)
-    logging.basicConfig(level=logging.INFO)
+    parser.add_argument(
+        "-t",
+        "--test-dirs",
+        dest="test_dirs",
+        default=Path.cwd() / "tests",
+        type=Path,
+        help="root of tests",
+    )
+    parser.add_argument(
+        "-s",
+        "--source-dirs",
+        dest="source_dirs",
+        default=Path.cwd() / "tests",
+        type=Path,
+        help="root of tests",
+    )
 
-    return options.__dict__
+
+def process_options(options: argparse.Namespace, error: cli.ErrorFn):
+    options.source_dirs = misc.list_of_paths(options.source_dirs)
+    options.test_dirs = misc.list_of_paths(options.test_dirs)
 
 
-def find_test(source:Path, test_dir:Path):
-    candidates = [
-        test_dir / f"test_{source.name}"
-    ]
-    found = [ c for c in candidates if c.exists() ]
-    return found[0]
+def lookup_candidates(source: Path, test_dirs: list[Path]):
+    raise RuntimeError("not-implemented")
+    # candidates = [test_dirs / f"test_{source.name}"]
+    # found = [c for c in candidates if c.exists()]
+    # return found[0]
 
 
-def main(source:Path, test_dir:Path):
+@cli.driver(add_arguments, process_options, doc=__doc__)
+def main(source: Path, source_dirs: Path | list[Path], test_dirs: Path | list[Path]):
     log.info("source file: %s", source)
+    log.debug("sources from: %s", source_dirs)
+    log.debug("tests from: %s", test_dirs)
+    return
+    # tfile = lookup_candidates(source, test_dir)
+    # log.info("found test in: %s", tfile)
 
-    tfile = find_test(source, test_dir)
-    log.info("found test in: %s", tfile)
+    # from pytest import main
 
-    from pytest import main
-    main(["-vvs", tfile])
+    # main(["-vvs", tfile])
 
 
 if __name__ == "__main__":
-    main(**parse_args())
+    main()
+    # group()

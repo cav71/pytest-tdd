@@ -1,9 +1,34 @@
 import argparse
-import contextlib
-from unittest import mock
 
 import pytest
 from pytest_tdd import cli
+
+
+@pytest.fixture(scope="function")
+def single_command_cli():
+    def add_argument(parser: argparse.ArgumentParser):
+        parser.add_argument("-f", type=float)
+        parser.add_argument("value", type=float)
+        parser.add_argument("--abort")
+        parser.add_argument("--except", dest="except_")
+
+    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
+        options.value *= options.f
+
+    @cli.driver(add_argument, process_options, reraise=True)
+    def hello(options):
+        """an hello world example
+
+        With an extensive help message and multiline
+         text with indentation
+            and complex shape
+        """
+        if options.except_:
+            raise cli.AbortExecutionError(f"aborted with {options.except_=}")
+        if options.abort:
+            options.error(f"aborted with {options.abort=}")
+        return options.value
+    return hello
 
 
 def test_exception():
@@ -33,7 +58,7 @@ hint:
 
 
 def test_docstring():
-    @cli.cli()
+    @cli.driver()
     def hello(options):
         "this is a docstring"
         pass
@@ -41,48 +66,41 @@ def test_docstring():
     assert hello.__doc__ == "this is a docstring"
 
 
-def test_cli_call_help():
+def test_single_command_cli_help(help_wrapper, single_command_cli):
+    assert help_wrapper(single_command_cli)(["--help"]) == """\
+usage: hello [-h] [-n] [-v] [-f F] [--abort ABORT] [--except EXCEPT_] value
 
-    class JumpOut(Exception):
-        pass
-
-    def add_argument(parser: argparse.ArgumentParser):
-        parser.add_argument("-f", type=float)
-        parser.add_argument("value", type=float)
-
-    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-        options.value *= options.f
-    
-    @cli.cli(add_argument, process_options)
-    def hello(options):
-        return options.value
-
-    with contextlib.ExitStack() as stack:
-
-        def xxx(self, parser, namespace, values, option_string=None):
-            found = (
-                parser.format_help()
-                .strip()
-                .replace(" py.test ", " pytest ")
-                .replace("optional arguments:", "options:")
-            )
-            assert (
-                found
-                == """
-usage: pytest [-h] [-n] [-v] [-f F] value
+an hello world example
 
 positional arguments:
   value
 
 options:
-  -h, --help     show this help message and exit
+  -h, --help        show this help message and exit
   -n, --dry-run
   -v, --verbose
   -f F
-""".strip()
-            )
-            raise JumpOut("get out")
+  --abort ABORT
+  --except EXCEPT_
 
-        stack.enter_context(mock.patch("argparse._HelpAction.__call__", new=xxx))
-        pytest.raises(JumpOut, hello, ["--help",])
-        assert hello(["-f", "2", "123"]) == 246
+With an extensive help message and multiline
+ text with indentation
+    and complex shape
+"""
+
+def test_single_command_cli_calls(single_command_cli):
+
+    assert single_command_cli(["12", "-f", "4"]) == 48
+
+    # test internal handled exceptions
+    pytest.raises(cli.AbortExecutionError,
+                  single_command_cli, ["12", "-f", "4", "--except", "bye!"])
+    pytest.raises(cli.AbortExecutionError,
+                  single_command_cli, ["12", "-f", "4", "--abort", "bye!"])
+
+    # a non internal exception
+    pytest.raises(TypeError,
+                  single_command_cli, ["12",])
+
+
+

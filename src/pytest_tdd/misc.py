@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, IO
 from pathlib import Path
 
 
@@ -53,3 +53,35 @@ def loadmod(path: Path, name: str | None = None) -> Any:
     if module and spec and spec.loader:
         spec.loader.exec_module(module)
     return module
+
+
+def get_doc(src: Path | IO, pre: str | None = None) -> str | None:
+    from ast import parse, NodeVisitor, get_docstring
+
+    class Visitor(NodeVisitor):
+        def __init__(self):
+            self.doc = None
+            super().__init__()
+
+        def visit_Module(self, node):
+            assert self.doc is None, "module has two heads?"
+            self.doc = get_docstring(node, clean=True)
+            return super().generic_visit(node)
+
+    root = parse(str(src.read_text() if hasattr(src, "read_text") else src))
+    visitor = Visitor()
+    visitor.visit(root)
+    return (
+        visitor.doc
+        if visitor.doc is None
+        else visitor.doc
+        if pre is None
+        else indent(visitor.doc, pre)
+    )
+
+
+def get_kv_from_comments(txt: str):
+    section = None
+    for line in txt.split("\n"):
+        if not (section or line.startswith("#")):
+            continue
