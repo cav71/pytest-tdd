@@ -6,4 +6,4 @@ ruff
 typing-extensions
 mypy_extensions
 types-mypy-extensions
-
+lxml
