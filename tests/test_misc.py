@@ -2,7 +2,6 @@ from pytest_tdd import misc
 
 
 def test_get_doc():
-    from ast import parse
     txt = """
 '''Hello world
 multi lined
@@ -11,13 +10,13 @@ multi lined
 def init():
     pass
 """
-    assert misc.get_doc(parse(txt)) == """\
+    assert misc.get_doc(txt) == """\
 Hello world
 multi lined
   comment
 """.rstrip()
 
-    assert misc.get_doc(parse(txt), pre="..") == """\
+    assert misc.get_doc(txt, pre="..") == """\
 ..Hello world
 ..multi lined
 ..  comment
