@@ -228,9 +228,9 @@ class Driver:
 driver = Driver
 
 
-# @dc.dataclass
-# class MulticommandDriver(Driver):
-#     functions: list[MAIN_CALL] = dc.field(default_factory=list)
+@dc.dataclass
+class MulticommandDriver(Driver):
+    commands: list[Callable] = dc.field(default_factory=list)
 
 
 def command(

@@ -56,9 +56,9 @@ def multi_command_cli():
     def process_options(options: argparse.Namespace, error: cli.ErrorFn):
         options.value *= options.f
 
-    return
     group = cli.MulticommandDriver(add_arguments, process_options)
 
+    return
 
     def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument("--hello-x")
