@@ -4,9 +4,21 @@ import pytest
 from pytest_tdd import cli
 
 
+def test_merge_kwargs():
+    def fn(x, y=2):
+        pass
+    options = argparse.Namespace(x=1, z=3)
+
+    # missing y
+    pytest.raises(cli.InternalCliError, cli.merge_kwargs, fn, options)
+
+    options.y = 99
+    assert cli.merge_kwargs(fn, options) == { "x": 1, "y": 99}
+
+
 @pytest.fixture(scope="function")
 def single_command_cli():
-    def add_argument(parser: argparse.ArgumentParser):
+    def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument("-f", type=float)
         parser.add_argument("value", type=float)
         parser.add_argument("--abort")
@@ -15,7 +27,7 @@ def single_command_cli():
     def process_options(options: argparse.Namespace, error: cli.ErrorFn):
         options.value *= options.f
 
-    @cli.driver(add_argument, process_options, reraise=True)
+    @cli.driver(add_arguments, process_options, reraise=True)
     def hello(options):
         """an hello world example
 
@@ -29,6 +41,37 @@ def single_command_cli():
             options.error(f"aborted with {options.abort=}")
         return options.value
     return hello
+
+
+@pytest.fixture(scope="function")
+def single_sub_command_cli():
+    return
+    def add_arguments(parser: argparse.ArgumentParser):
+        parser.add_argument("-f", type=float)
+        parser.add_argument("value", type=float)
+        parser.add_argument("--abort")
+        parser.add_argument("--except", dest="except_")
+
+    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
+        options.value *= options.f
+
+    group = cli.command(add_arguments, process_options)
+
+
+    def add_arguments(parser: argparse.ArgumentParser):
+        pass
+
+    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
+        pass
+
+    @group.command(add_arguments, process_options)
+    def hello(options):
+        pass
+
+
+    @group.command()
+    def world(options):
+        pass
 
 
 def test_exception():

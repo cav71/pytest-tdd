@@ -5,6 +5,7 @@ import functools
 import logging
 import sys
 from typing import Any, Callable, Protocol
+import dataclasses as dc
 
 from . import misc
 
@@ -14,7 +15,19 @@ class ErrorFn(Protocol):
         ...
 
 
-class AbortExecutionError(Exception):
+ADD_ARGUMENTS = Callable[[argparse.ArgumentParser], None]
+PROCESS_OPTIONS = Callable[[argparse.Namespace, ErrorFn], argparse.Namespace | None]
+
+
+class CliError(Exception):
+    pass
+
+
+class InternalCliError(CliError):
+    pass
+
+
+class AbortExecutionError(InternalCliError):
     @staticmethod
     def _strip(txt):
         txt = txt or ""
@@ -71,11 +84,12 @@ def merge_kwargs(
     from inspect import signature
 
     fn_kwargs = set(signature(fn).parameters)
+    # TODO find a better way than hardcode 'options'
     if fn_kwargs == {"options"}:
         return {"options": options}
     op_kwargs = set(options.__dict__)
     if missing := (fn_kwargs - op_kwargs):
-        raise RuntimeError("missing arguments", missing)
+        raise InternalCliError("missing arguments", missing)
     return {k: getattr(options, k) for k in op_kwargs & fn_kwargs}
 
 
@@ -137,17 +151,9 @@ class ArgumentParser(argparse.ArgumentParser):
         )
 
 
-def driver(
-    add_arguments: Callable[[argparse.ArgumentParser], None] | None = None,
-    process_options: Callable[[argparse.Namespace, ErrorFn], argparse.Namespace | None]
-    | None = None,
-    doc: str | None = None,
-    match_call: bool = True,
-    reraise: bool = False,
-    **parser_kwargs,
-):
-    """decorator for cli scripts
-
+@dc.dataclass
+class Driver:
+    """
     :argument add_arguments: callable (with parser ArgumentParser argument)
                         to add arguments
     :argument process_options: callable (with options Namespace and ErrorFn function)
@@ -169,15 +175,23 @@ def driver(
             main()
     """
 
-    @functools.wraps(driver)
-    def _fn(main: Callable[[argparse.Namespace | Any], Any]):
+    add_arguments: ADD_ARGUMENTS | None = None
+    process_options: PROCESS_OPTIONS | None = None
+    doc: str | None = None
+    match_call: bool = True
+    reraise: bool = False
+    parser_kwargs: dict[str, Any] = dc.field(default_factory=dict)
+
+    def __call__(self, main: Callable[[argparse.Namespace | Any], Any]):
         @functools.wraps(main)
         def _fn1(args: None | list[str] = None) -> Any:
             try:
-                parser = ArgumentParser(doc=doc or main.__doc__, **parser_kwargs)
+                parser = ArgumentParser(
+                    doc=self.doc or main.__doc__, **self.parser_kwargs
+                )
                 _add_arguments(parser)
-                if add_arguments:
-                    add_arguments(parser)
+                if self.add_arguments:
+                    self.add_arguments(parser)
 
                 options = parser.parse_args(args=args)
 
@@ -193,13 +207,15 @@ def driver(
                 options.error = errorfn
 
                 options = _process_options(options, errorfn) or options
-                if process_options:
-                    options = process_options(options, errorfn) or options
+                if self.process_options:
+                    options = self.process_options(options, errorfn) or options
 
                 kwargs = merge_kwargs(main, options)
-                return main(**kwargs) if match_call else main(options)  # type: ignore
+                return (
+                    main(**kwargs) if self.match_call else main(options)  # type: ignore
+                )
             except AbortExecutionError as err:
-                if reraise:
+                if self.reraise:
                     raise err
                 print(str(err), file=sys.stderr)  # noqa: T201
                 raise SystemExit(2) from None
@@ -208,7 +224,19 @@ def driver(
 
         return _fn1
 
-    return _fn
+
+driver = Driver
+
+
+def command(
+    add_arguments: ADD_ARGUMENTS | None = None,
+    process_options: PROCESS_OPTIONS | None = None,
+    doc: str | None = None,
+    match_call: bool = True,
+    reraise: bool = False,
+    **parser_kwargs,
+):
+    pass
 
 
 # class group:
