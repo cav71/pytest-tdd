@@ -44,8 +44,9 @@ def single_command_cli():
 
 
 @pytest.fixture(scope="function")
-def single_sub_command_cli():
-    return
+def multi_command_cli():
+
+    # common arguments to all commands
     def add_arguments(parser: argparse.ArgumentParser):
         parser.add_argument("-f", type=float)
         parser.add_argument("value", type=float)
@@ -55,11 +56,12 @@ def single_sub_command_cli():
     def process_options(options: argparse.Namespace, error: cli.ErrorFn):
         options.value *= options.f
 
-    group = cli.command(add_arguments, process_options)
+    return
+    group = cli.MulticommandDriver(add_arguments, process_options)
 
 
     def add_arguments(parser: argparse.ArgumentParser):
-        pass
+        parser.add_argument("--hello-x")
 
     def process_options(options: argparse.Namespace, error: cli.ErrorFn):
         pass
@@ -146,4 +148,5 @@ def test_single_command_cli_calls(single_command_cli):
                   single_command_cli, ["12",])
 
 
-
+def test_multi_command_cli_help(help_wrapper, multi_command_cli):
+    pass

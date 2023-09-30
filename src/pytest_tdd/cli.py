@@ -182,7 +182,7 @@ class Driver:
     reraise: bool = False
     parser_kwargs: dict[str, Any] = dc.field(default_factory=dict)
 
-    def __call__(self, main: Callable[[argparse.Namespace | Any], Any]):
+    def __call__(self, main: Callable):
         @functools.wraps(main)
         def _fn1(args: None | list[str] = None) -> Any:
             try:
@@ -226,6 +226,11 @@ class Driver:
 
 
 driver = Driver
+
+
+# @dc.dataclass
+# class MulticommandDriver(Driver):
+#     functions: list[MAIN_CALL] = dc.field(default_factory=list)
 
 
 def command(
