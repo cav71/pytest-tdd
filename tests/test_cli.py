@@ -16,65 +16,6 @@ def test_merge_kwargs():
     assert cli.merge_kwargs(fn, options) == { "x": 1, "y": 99}
 
 
-@pytest.fixture(scope="function")
-def single_command_cli():
-    def add_arguments(parser: argparse.ArgumentParser):
-        parser.add_argument("-f", type=float)
-        parser.add_argument("value", type=float)
-        parser.add_argument("--abort")
-        parser.add_argument("--except", dest="except_")
-
-    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-        options.value *= options.f
-
-    @cli.driver(add_arguments, process_options, reraise=True)
-    def hello(options):
-        """an hello world example
-
-        With an extensive help message and multiline
-         text with indentation
-            and complex shape
-        """
-        if options.except_:
-            raise cli.AbortExecutionError(f"aborted with {options.except_=}")
-        if options.abort:
-            options.error(f"aborted with {options.abort=}")
-        return options.value
-    return hello
-
-
-@pytest.fixture(scope="function")
-def multi_command_cli():
-
-    # common arguments to all commands
-    def add_arguments(parser: argparse.ArgumentParser):
-        parser.add_argument("-f", type=float)
-        parser.add_argument("value", type=float)
-        parser.add_argument("--abort")
-        parser.add_argument("--except", dest="except_")
-
-    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-        options.value *= options.f
-
-    group = cli.MulticommandDriver(add_arguments, process_options)
-
-    return
-
-    def add_arguments(parser: argparse.ArgumentParser):
-        parser.add_argument("--hello-x")
-
-    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-        pass
-
-    @group.command(add_arguments, process_options)
-    def hello(options):
-        pass
-
-
-    @group.command()
-    def world(options):
-        pass
-
 
 def test_exception():
     obj = cli.AbortExecutionError(
@@ -109,6 +50,33 @@ def test_docstring():
         pass
 
     assert hello.__doc__ == "this is a docstring"
+
+
+@pytest.fixture(scope="function")
+def single_command_cli():
+    def add_arguments(parser: argparse.ArgumentParser):
+        parser.add_argument("-f", type=float)
+        parser.add_argument("value", type=float)
+        parser.add_argument("--abort")
+        parser.add_argument("--except", dest="except_")
+
+    def process_options(options: argparse.Namespace, error: cli.ErrorFn):
+        options.value *= options.f
+
+    @cli.driver(add_arguments, process_options, reraise=True)
+    def hello(options):
+        """an hello world example
+
+        With an extensive help message and multiline
+         text with indentation
+            and complex shape
+        """
+        if options.except_:
+            raise cli.AbortExecutionError(f"aborted with {options.except_=}")
+        if options.abort:
+            options.error(f"aborted with {options.abort=}")
+        return options.value
+    return hello
 
 
 def test_single_command_cli_help(help_wrapper, single_command_cli):
@@ -146,7 +114,3 @@ def test_single_command_cli_calls(single_command_cli):
     # a non internal exception
     pytest.raises(TypeError,
                   single_command_cli, ["12",])
-
-
-def test_multi_command_cli_help(help_wrapper, multi_command_cli):
-    pass

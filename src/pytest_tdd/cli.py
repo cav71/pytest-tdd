@@ -15,8 +15,8 @@ class ErrorFn(Protocol):
         ...
 
 
-ADD_ARGUMENTS = Callable[[argparse.ArgumentParser], None]
-PROCESS_OPTIONS = Callable[[argparse.Namespace, ErrorFn], argparse.Namespace | None]
+ARGUMENTS = Callable[[argparse.ArgumentParser], None]
+OPTIONS = Callable[[argparse.Namespace, ErrorFn], argparse.Namespace | None]
 
 
 class CliError(Exception):
@@ -175,8 +175,8 @@ class Driver:
             main()
     """
 
-    add_arguments: ADD_ARGUMENTS | None = None
-    process_options: PROCESS_OPTIONS | None = None
+    add_arguments: ARGUMENTS | None = None
+    process_options: OPTIONS | None = None
     doc: str | None = None
     match_call: bool = True
     reraise: bool = False
@@ -226,57 +226,3 @@ class Driver:
 
 
 driver = Driver
-
-
-@dc.dataclass
-class MulticommandDriver(Driver):
-    commands: list[Callable] = dc.field(default_factory=list)
-
-
-def command(
-    add_arguments: ADD_ARGUMENTS | None = None,
-    process_options: PROCESS_OPTIONS | None = None,
-    doc: str | None = None,
-    match_call: bool = True,
-    reraise: bool = False,
-    **parser_kwargs,
-):
-    pass
-
-
-# class group:
-#     def __init__(
-#         self,
-#         add_arguments: Callable[[argparse.ArgumentParser], None] | None = None,
-#         process_options: Callable[
-#             [argparse.Namespace, ErrorFn], argparse.Namespace | None
-#         ]
-#         | None = None,
-#         **kwargs,
-#     ):
-#         self._add_arguments = add_arguments
-#         self._process_options = process_options
-#         self._postprocess : dict[str, Callable[
-#             [argparse.Namespace, ErrorFn], argparse.Namespace | None
-#         ]
-#         | None ] = {}
-#         self.parser = ArgumentParser(**kwargs)
-#         self.subparsers = self.parser.add_subparsers()
-#
-#     def command(
-#         self,
-#         fn,
-#         add_arguments: Callable[[argparse.ArgumentParser], None] | None = None,
-#         process_options: Callable[
-#             [argparse.Namespace, ErrorFn], argparse.Namespace | None
-#         ]
-#         | None = None,
-#         name: str | None = None,
-#     ):
-#         name = name or fn.__name__
-#         parser = self.subparsers.add_parser(name)
-#         if self._add_arguments:
-#             self._add_arguments(parser)
-#         add_arguments(parser)
-#         self._postprocess[name] = process_options
-#
