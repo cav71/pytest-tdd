@@ -69,3 +69,15 @@ def test_loadmod():
     assert "test_loadmod" in dir(mod)
     assert mod.__name__ == "xyz"
 
+
+def test_mkdir(tmp_path):
+    # fake a dest dir
+    with misc.mkdir(tmp_path / "testdir") as tdir:
+        assert tdir.exists()
+    assert tdir.exists()
+    tdir.rmdir()
+
+    with misc.mkdir() as tdir:
+        assert tdir.exists()
+    assert not tdir.exists()
+

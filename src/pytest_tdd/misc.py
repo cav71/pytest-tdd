@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, IO
+
+import contextlib
+from typing import Any, IO, Generator
 from pathlib import Path
 
 
@@ -80,8 +82,18 @@ def get_doc(src: Path | IO, pre: str | None = None) -> str | None:
     )
 
 
-def get_kv_from_comments(txt: str):
-    section = None
-    for line in txt.split("\n"):
-        if not (section or line.startswith("#")):
-            continue
+@contextlib.contextmanager
+def mkdir(path: Path | None = None) -> Generator[Path, None, None]:
+    from tempfile import mkdtemp
+    from shutil import rmtree
+    from os import makedirs
+
+    tmpdir = path or mkdtemp()
+    try:
+        makedirs(tmpdir, exist_ok=True)
+        yield Path(tmpdir).absolute()
+        if path:
+            return
+        rmtree(tmpdir, ignore_errors=True)
+    except Exception as exc:
+        raise RuntimeError("left temp dir untouched in %s", tmpdir) from exc
