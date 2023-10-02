@@ -12,61 +12,77 @@ Example:
     - tests/test_hello.py
 """
 from __future__ import annotations
+import sys
 import argparse
 import logging
+import subprocess
 from pathlib import Path
-from pytest_tdd import misc, cli
-
+from pytest_tdd import misc, cli, tdd
 
 log = logging.getLogger(__name__)
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("source", type=Path, help="source to run tests for")
+
     parser.add_argument(
         "-t",
-        "--test-dirs",
-        dest="test_dirs",
-        default=Path.cwd() / "tests",
+        "--tests-dir",
+        default="tests",
         type=Path,
         help="root of tests",
     )
     parser.add_argument(
         "-s",
-        "--source-dirs",
-        dest="source_dirs",
-        default=Path.cwd() / "tests",
+        "--sources-dir",
+        default="src",
         type=Path,
-        help="root of tests",
+        help="root of sources",
     )
 
 
 def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-    options.source_dirs = misc.list_of_paths(options.source_dirs)
-    options.test_dirs = misc.list_of_paths(options.test_dirs)
+    options.source = options.source.absolute()
+    options.sources_dir = (Path.cwd() / options.sources_dir).absolute()
+    options.tests_dir = (Path.cwd() / options.tests_dir).absolute()
 
 
-def lookup_candidates(source: Path, test_dirs: list[Path]):
-    raise RuntimeError("not-implemented")
-    # candidates = [test_dirs / f"test_{source.name}"]
-    # found = [c for c in candidates if c.exists()]
-    # return found[0]
+def run(candidates: list[Path]):
+    with misc.mkdir() as outdir:
+        cmd = ["pytest", "-vvs", *candidates]
+        stdout = outdir / "stdout.txt"
+        stderr = outdir / "stderr.txt"
+        p = subprocess.Popen(
+            [str(c) for c in cmd], stdout=stdout.open("w"), stderr=stderr.open("w")
+        )
+        p.communicate()
+        print("== STDERR ==")
+        print(misc.indent(stderr.read_text()))
+        print("== STDOUT ==")
+        print(misc.indent(stdout.read_text()))
+        print("== RETCOD ==")
+        print(str(p.returncode))
+        return p.returncode
 
 
 @cli.driver(add_arguments, process_options, doc=__doc__)
-def main(source: Path, source_dirs: Path | list[Path], test_dirs: Path | list[Path]):
+def main(source: Path, sources_dir: Path, tests_dir: Path):
     log.info("source file: %s", source)
-    log.debug("sources from: %s", source_dirs)
-    log.debug("tests from: %s", test_dirs)
-    return
-    # tfile = lookup_candidates(source, test_dir)
-    # log.info("found test in: %s", tfile)
+    log.debug("sources from: %s", sources_dir)
+    log.debug("tests from: %s", tests_dir)
 
-    # from pytest import main
-
-    # main(["-vvs", tfile])
+    candidates = tdd.lookup_candidates(source, sources_dir, tests_dir)
+    # filter out candidates
+    to_be_run = []
+    for candidate in candidates:
+        if not candidate.exists():
+            log.debug("skipping missing candidate %s", candidate)
+        else:
+            log.debug("adding candidate %s", candidate)
+            to_be_run.append(candidate)
+    candidates = to_be_run
+    return run(candidates)
 
 
 if __name__ == "__main__":
-    main()
-    # group()
+    sys.exit(main())
