@@ -93,7 +93,7 @@ options:
   -n, --dry-run
   -v, --verbose
   -f F
-  --abort ABORT
+  --abort ABORTX
   --except EXCEPT_
 
 With an extensive help message and multiline
