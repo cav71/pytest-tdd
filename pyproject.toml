@@ -3,7 +3,8 @@ requires = [
     "hatchling",
     "hatch-ci",
     "typing-extensions",
-    "jinja2"
+    "jinja2",
+    "pydevd-pycharm~=232.10072.31"
 ]
 build-backend = "hatchling.build"
 
