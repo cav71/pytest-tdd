@@ -33,7 +33,7 @@ Documentation = "https://github.com/cav71/pytest-tdd"
 Repository = "https://github.com/cav71/pytest-tdd"
 
 [project.scripts]
-pytest-tdd = "pytest_tdd:pytest_tdd.__main__"
+pytest-tdd = "pytest-tdd:pytest_tdd.__main__"
 
 [tool.hatch.version]
 source = "ci"

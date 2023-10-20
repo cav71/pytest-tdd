@@ -1,6 +1,6 @@
 - id: pytest-tdd
   name: test-tdd 
   description: Run tests on a module on commit
-  entry: pytest_tdd
+  entry: pytest-tdd
   language: python
   types: [file, python]
