@@ -12,6 +12,7 @@ Example:
     - tests/test_hello.py
 """
 from __future__ import annotations
+import os
 import sys
 import argparse
 import logging
@@ -57,9 +58,14 @@ def process_options(options: argparse.Namespace, error: cli.ErrorFn):
 
 
 def run(
-    module: str, candidates: list[Path], config: Flags
+    sources_dir: Path, module: str, candidates: list[Path], config: Flags
 ) -> tuple[int, dict[str, str | None]]:
     with misc.mkdir() as outdir:
+        env = os.environ.copy()
+        env.get("PYTHONPATH", "").split(os.pathsep)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(sources_dir), *env.get("PYTHONPATH", "").split(os.pathsep)]
+        )
         stdout = outdir / "stdout.txt"
         stderr = outdir / "stderr.txt"
         xmlout = outdir / "xmlout.xml"
@@ -84,14 +90,19 @@ def run(
         cmd = [*cmd, *candidates]
 
         p = subprocess.Popen(
-            [str(c) for c in cmd], stdout=stdout.open("w"), stderr=stderr.open("w")
+            [str(c) for c in cmd],
+            stdout=stdout.open("w"),
+            stderr=stderr.open("w"),
+            env=env,
         )
         p.communicate()
         return p.returncode, {
             "stdout": stdout.read_text(),
             "stderr": stderr.read_text(),
-            "tests": xmlout.read_text(),
-            "coverage": coverage.read_text() if coverage else None,
+            "tests": xmlout.read_text() if xmlout.exists() else None,
+            "coverage": coverage.read_text()
+            if coverage and coverage.exists()
+            else None,
         }
 
 
@@ -121,7 +132,7 @@ def compute(source: Path, result: dict[str, str | None]) -> str:
             f"run {totals['tests']} tests with {totals['failures']} "
             f"failures and {totals['errors']} errors"
         )
-    return f"{source.name} {tests}, {coverage}%"
+    return f"{source.name} {tests}, {coverage}"
 
 
 @cli.driver(add_arguments, process_options, doc=__doc__)
@@ -146,7 +157,7 @@ def main(source: Path, sources_dir: Path, tests_dir: Path) -> int:
             to_be_run.append(candidate)
     candidates = to_be_run
 
-    returncode, result = run(module, candidates, Flags.COVERAGE)
+    returncode, result = run(sources_dir, module, candidates, Flags.COVERAGE)
     # print("== STDERR ==")
     # print(misc.indent(result["stderr"]))
     # print("== STDOUT ==")
@@ -160,6 +171,10 @@ def main(source: Path, sources_dir: Path, tests_dir: Path) -> int:
     # print(str(result["returncode"]))
     # print("== WOW ==")
     print(compute(source, result))
+
+    if returncode:
+        if result["stdout"]:
+            log.warning("failure\n%s", misc.indent(result["stdout"], "| "))
     return returncode
 
 
