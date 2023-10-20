@@ -26,6 +26,10 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python"
 ]
+dependencies = [
+    "pytest",
+    "pytest-coverage",
+]
 
 [project.urls]
 Homepage = "https://github.com/cav71/pytest-tdd"
@@ -34,6 +38,7 @@ Repository = "https://github.com/cav71/pytest-tdd"
 
 [project.scripts]
 pytest-tdd = "pytest_tdd:script.main"
+
 
 [tool.hatch.version]
 source = "ci"
