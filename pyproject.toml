@@ -8,11 +8,6 @@ requires = [
 ]
 build-backend = "hatchling.build"
 
-[tool.hatch.version]
-source = "ci"
-version-file = "src/pytest_tdd/__init__.py"
-
-
 [project]
 name = "pytest-tdd"
 dynamic = ["version"]
@@ -39,6 +34,10 @@ Repository = "https://github.com/cav71/pytest-tdd"
 
 [project.scripts]
 pytest-tdd = "pytest_tdd:pytest_tdd.__main__"
+
+[tool.hatch.version]
+source = "ci"
+version-file = "src/pytest_tdd/__init__.py"
 
 
 [tool.hatch.build]
