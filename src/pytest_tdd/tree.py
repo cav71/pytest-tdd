@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import sys
 import collections
-from typing import Callable, Literal
+from typing import Callable
 from pathlib import Path
 import argparse
 import dataclasses as dc
@@ -15,7 +15,7 @@ import click
 @dc.dataclass
 class Node:
     name: str = ""
-    kind: Literal["dir"] | Literal["file"] = "file"
+    kind: str = "file"
     children: list[Node] = dc.field(default_factory=list)
     parent: Node | None = None
 
