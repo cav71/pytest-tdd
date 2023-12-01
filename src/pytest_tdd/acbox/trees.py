@@ -8,16 +8,32 @@ from typing import Callable, Iterable
 @dc.dataclass
 class Node:
     _: dc.KW_ONLY
-    children: list[Node] = dc.field(default_factory=list)
+    children: list[Node | None] = dc.field(default_factory=list)
     parent: Node | None = None
 
     @property
     def left(self):
         return self.children[0] if self.children else None
 
+    @left.setter
+    def left(self, node: Node):
+        if len(self.children) == 0:
+            self.children.append(node)
+        else:
+            self.children[0] = node
+
     @property
     def right(self):
         return self.children[1] if len(self.children) > 1 else None
+
+    @right.setter
+    def right(self, node: Node):
+        if len(self.children) == 0:
+            self.children.append(None)
+        if len(self.children) == 1:
+            self.children.append(node)
+        else:
+            self.children[1] = node
 
 
 N = Node
@@ -49,12 +65,12 @@ def append(
     while level < n:
         for child in cur.children:
             if getattr(child, indexer) == dest[level]:
-                cur = child
+                cur = child  # type: ignore
                 break
         else:
             node = make_node(cur, dest[: level + 1])
             cur.children.append(node)
-            cur = cur.children[-1]
+            cur = cur.children[-1]  # type: ignore
 
         level += 1
 
@@ -65,4 +81,4 @@ def dfs(root: Node, fn: Callable[[Node], None]) -> None:
         node = queue.popleft()
         fn(node)
         for child in node.children:
-            queue.appendleft(child)
+            queue.appendleft(child)  # type: ignore
