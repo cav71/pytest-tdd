@@ -3,20 +3,21 @@
 from __future__ import annotations
 import os
 import sys
-from typing import Literal
+import collections
+from typing import Callable, Literal
 from pathlib import Path
 import argparse
 import dataclasses as dc
 
 import click
 
-from pytest_tdd.acbox import trees
-
 
 @dc.dataclass
-class Node(trees.N):
+class Node:
     name: str = ""
     kind: Literal["dir"] | Literal["file"] = "file"
+    children: list[Node] = dc.field(default_factory=list)
+    parent: Node | None = None
 
     def level(self):
         counter = 0
@@ -44,17 +45,39 @@ class Node(trees.N):
         return f"<None key={''.join(reversed(key))}>"
 
 
+def dfs(root: Node, fn: Callable[[Node], None]) -> None:
+    queue = collections.deque([root])
+    while queue:
+        node = queue.popleft()
+        fn(node)
+        for child in node.children:
+            queue.appendleft(child)  # type: ignore
+
+
 @dc.dataclass
 class Tree:
     root: Node
 
-    def append(self, key: list[str] | tuple[str]) -> None:
-        def make_node(parent: Node, key: list[str]):
+    def append(self, dest: list[str] | tuple[str, ...]) -> None:
+        def make_node(parent: Node, key: list[str] | tuple[str, ...]):
             node = Node(name=key[-1], kind="dir" if key[-1].endswith("/") else "file")
             node.parent = parent
             return node
 
-        trees.append(self.root, key, "name", make_node)  # type: ignore
+        cur = self.root
+        level = 0
+        n = len(dest)
+        while level < n:
+            for child in cur.children:
+                if child.name == dest[level]:
+                    cur = child  # type: ignore
+                    break
+            else:
+                node = make_node(cur, dest[: level + 1])
+                cur.children.append(node)
+                cur = cur.children[-1]  # type: ignore
+
+            level += 1
 
     def generate(self, dryrun: bool = True):
         def maker(node):
@@ -72,7 +95,7 @@ class Tree:
 
         if dryrun:
             print("Will generate:")
-        trees.dfs(self.root, maker)
+        dfs(self.root, maker)
 
 
 def ls(path):
@@ -162,7 +185,7 @@ def main():
 @click.argument("src", type=click.File("r"))
 def create(destdir, src, generate):
     """regenerates a new directory tree from the `tree -aF` output
-
+src/pytest_tdd/tree.py
     \b
     Eg.
         # this will regenerate the directory tree layouts/my-project 
@@ -195,7 +218,7 @@ def xmain():
             tree = parse(sys.stdin.read())
         else:
             tree = parse(args.value.read_text())
-        trees.dfs(tree.root, lambda n: print(f" {n=}"))
+        dfs(tree.root, lambda n: print(f" {n=}"))
         breakpoint()
         pass
 
