@@ -52,6 +52,6 @@ ignore-ci = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/pytest_tdd"]
 
-[mypy-pytest_tdd.acbox.trees]
-ignore_errors = True
+[mypy-pytest_tdd.acbox.*]
+ignore_errors = true
 
