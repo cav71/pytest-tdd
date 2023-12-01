@@ -54,7 +54,6 @@ def run(
     coverage = workdir / "coverage.json"
     cmdline.extend(
         [
-            *cmdline,
             "--cov-reset",
             "--cov",
             module,
