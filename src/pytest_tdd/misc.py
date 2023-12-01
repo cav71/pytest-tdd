@@ -83,7 +83,7 @@ def get_doc(src: Path | IO, pre: str | None = None) -> str | None:
 
 
 @contextlib.contextmanager
-def mkdir(path: Path | None = None) -> Generator[Path, None, None]:
+def mkdir(path: Path | None = None, keep: bool = False) -> Generator[Path, None, None]:
     from tempfile import mkdtemp
     from shutil import rmtree
     from os import makedirs
@@ -94,6 +94,7 @@ def mkdir(path: Path | None = None) -> Generator[Path, None, None]:
         yield Path(tmpdir).absolute()
         if path:
             return
-        rmtree(tmpdir, ignore_errors=True)
+        if not keep:
+            rmtree(tmpdir, ignore_errors=True)
     except Exception as exc:
         raise RuntimeError("left temp dir untouched in %s", tmpdir) from exc
