@@ -111,18 +111,18 @@ def compute(source: Path, result: dict[str, str | None]) -> str:
 
 
 @click.command()
-@click.argument("source", type=click.Path(path_type=Path))
+@click.argument("source", type=click.Path(path_type=Path))  # type: ignore
 @click.option(
     "-t",
     "--tests-dir",
     default="tests",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(exists=True, file_okay=False, path_type=Path),  # type: ignore
 )
 @click.option(
     "-s",
     "--sources-dir",
     default="src",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    type=click.Path(exists=True, file_okay=False, path_type=Path),  # type: ignore
 )
 @click.option("-v", "--verbose", count=True)
 @click.option("-q", "--quiet", count=True)

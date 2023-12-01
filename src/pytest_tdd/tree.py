@@ -180,7 +180,7 @@ def main():
 
 
 @main.command()
-@click.argument("destdir", type=click.Path(path_type=Path))
+@click.argument("destdir", type=click.Path(path_type=Path))  # type: ignore
 @click.option("-g", "--generate", is_flag=True)
 @click.argument("src", type=click.File("r"))
 def create(destdir, src, generate):
