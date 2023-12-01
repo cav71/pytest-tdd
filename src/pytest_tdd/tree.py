@@ -8,7 +8,9 @@ from pathlib import Path
 import argparse
 import dataclasses as dc
 
-from acbox.structures import trees
+import click
+
+from pytest_tdd.acbox import trees
 
 
 @dc.dataclass
@@ -24,6 +26,15 @@ class Node(trees.N):
             counter += 1
         return counter
 
+    @property
+    def path(self) -> str:
+        key = []
+        cur = self
+        while cur:
+            key.append(cur.name)
+            cur = cur.parent  # type: ignore
+        return "".join(reversed(key))
+
     def __repr__(self):
         key = []
         cur = self
@@ -37,35 +48,31 @@ class Node(trees.N):
 class Tree:
     root: Node
 
-    @staticmethod
-    def append(root, iterable):
-        cur = root
-        index = 0
-        while index < len(iterable):
-            for child in cur.children:
-                if child.name == iterable[index]:
-                    cur = child
-                    break
+    def append(self, key: list[str] | tuple[str]) -> None:
+        def make_node(parent: Node, key: list[str]):
+            node = Node(name=key[-1], kind="dir" if key[-1].endswith("/") else "file")
+            node.parent = parent
+            return node
+
+        trees.append(self.root, key, "name", make_node)  # type: ignore
+
+    def generate(self, dryrun: bool = True):
+        def maker(node):
+            path = Path(node.path)
+            if node.kind == "dir":
+                if dryrun:
+                    print(f"  mkdir -p {path}")
+                else:
+                    path.mkdir(exist_ok=True, parents=True)
             else:
-                node = Node(
-                    name=iterable[index],
-                    kind="dir" if iterable[index].endswith("/") else "file",
-                )
-                node.parent = cur
-                cur.children.append(node)
-                cur = cur.children[-1]
-            index += 1
+                if dryrun:
+                    print(f"  touch    {node.path}")
+                else:
+                    path.touch()
 
-
-#     @staticmethod
-#     def dfs(tree: Tree | Node, fn: Callable[Node]) -> None:
-#         cur = getattr(tree, "root", tree)
-#         queue = collections.deque([cur])
-#         while queue:
-#             node = queue.popleft()
-#             fn(node)
-#             for child in node.children:
-#                 queue.appendleft(child)
+        if dryrun:
+            print("Will generate:")
+        trees.dfs(self.root, maker)
 
 
 def ls(path):
@@ -104,12 +111,13 @@ def parse(txt: str) -> Tree:
     def skip(txt):
         if not txt.strip():
             return True
-        return line[:1] not in SEP
+        return line.lstrip()[:1] not in SEP
 
     result = []
     plevel = None
     data = []
     for line in txt.split("\n"):
+        # print(f" > {line.rstrip()} {skip(line)}")
         if skip(line):
             continue
         level, name = flevel(line)
@@ -128,15 +136,50 @@ def parse(txt: str) -> Tree:
 
     tree = Tree(Node("", "dir"))
     for key in result:
-        # tree.append(tree.root, key)
-        def make_node(parent: None, key: Iterable):
-            return Node(name=key[-1], kind="dir" if key[-1].endswith("/") else "file")
-
-        trees.append(tree.root, key, "name", make_node)
+        tree.append(key)
     return tree
 
 
+def generate(dstdir: Path, txt: str) -> list[str]:
+    tree = parse(txt)
+    tree.root.name = f"{dstdir.resolve()}/"
+    tree.generate(dryrun=False)
+    result = []
+    for path in sorted(dstdir.rglob("*")):
+        rpath = path.relative_to(dstdir)
+        result.append(f"{rpath}/" if path.is_dir() else f"{rpath}")
+    return result
+
+
+@click.group()
 def main():
+    pass
+
+
+@main.command()
+@click.argument("destdir", type=click.Path(path_type=Path))
+@click.option("-g", "--generate", is_flag=True)
+@click.argument("src", type=click.File("r"))
+def create(destdir, src, generate):
+    """regenerates a new directory tree from the `tree -aF` output
+
+    \b
+    Eg.
+        # this will regenerate the directory tree layouts/my-project 
+        # under destdir
+
+        tree -aF layouts/my-project | \\
+          python -m pytest_tdd.tree create --generate destdir -
+    """
+    if destdir.exists():
+        raise click.UsageError(f"dest dir present '{destdir}'")
+
+    tree = parse(src.read())
+    tree.root.name = str(destdir.expanduser().resolve()) + "/"
+    tree.generate(not generate)
+
+
+def xmain():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["ls", "tojson"])
     parser.add_argument("value", nargs="?", type=Path)
