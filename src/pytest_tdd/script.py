@@ -14,96 +14,72 @@ Example:
 from __future__ import annotations
 import os
 import sys
-import argparse
 import logging
 import subprocess
-import enum
 import json
+import dataclasses as dc
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
-from pytest_tdd import misc, cli, tdd
+import click
+
+
+from pytest_tdd import misc, tdd
 
 log = logging.getLogger(__name__)
 
 
-class Flags(enum.Flag):
-    COUNT = enum.auto()
-    COVERAGE = enum.auto()
-
-
-def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("source", type=Path, help="source to run tests for")
-
-    parser.add_argument(
-        "-t",
-        "--tests-dir",
-        default="tests",
-        type=Path,
-        help="root of tests",
-    )
-    parser.add_argument(
-        "-s",
-        "--sources-dir",
-        default="src",
-        type=Path,
-        help="root of sources",
-    )
-
-
-def process_options(options: argparse.Namespace, error: cli.ErrorFn):
-    options.source = options.source.absolute()
-    options.sources_dir = (Path.cwd() / options.sources_dir).absolute()
-    options.tests_dir = (Path.cwd() / options.tests_dir).absolute()
-
-
 def run(
-    sources_dir: Path, module: str, candidates: list[Path], config: Flags
-) -> tuple[int, dict[str, str | None]]:
-    with misc.mkdir() as outdir:
-        env = os.environ.copy()
-        env.get("PYTHONPATH", "").split(os.pathsep)
-        env["PYTHONPATH"] = os.pathsep.join(
-            [str(sources_dir), *env.get("PYTHONPATH", "").split(os.pathsep)]
-        )
-        stdout = outdir / "stdout.txt"
-        stderr = outdir / "stderr.txt"
-        xmlout = outdir / "xmlout.xml"
-        coverage: Path | None = None
-        cmd = [
-            "pytest",
-            "-vvs",
-            "--junit-xml",
-            xmlout,
+    workdir: Path,
+    module: str,
+    candidates: list[Path],
+    sources_dir: Path,
+) -> tuple[int, dict[str, str | list[str] | None]]:
+    env = os.environ.copy()
+
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(sources_dir), *env.get("PYTHONPATH", "").split(os.pathsep)]
+    )
+    stdout = workdir / "stdout.txt"
+    stderr = workdir / "stderr.txt"
+    xmlout = workdir / "xmlout.xml"
+
+    cmdline = [
+        "pytest",
+        "-vvs",
+        "--junit-xml",
+        xmlout,
+    ]
+
+    coverage = workdir / "coverage.json"
+    cmdline.extend(
+        [
+            *cmdline,
+            "--cov-reset",
+            "--cov",
+            module,
+            "--cov-report",
+            f"json:{coverage}",
         ]
+    )
 
-        if config & Flags.COVERAGE:
-            coverage = outdir / "coverage.json"
-            cmd = [
-                *cmd,
-                "--cov-reset",
-                "--cov",
-                module,
-                "--cov-report",
-                f"json:{coverage}",
-            ]
-        cmd = [*cmd, *candidates]
+    cmd = [str(c) for c in [*cmdline, *candidates]]
 
-        p = subprocess.Popen(
-            [str(c) for c in cmd],
-            stdout=stdout.open("w"),
-            stderr=stderr.open("w"),
-            env=env,
-        )
-        p.communicate()
-        return p.returncode, {
-            "stdout": stdout.read_text(),
-            "stderr": stderr.read_text(),
-            "tests": xmlout.read_text() if xmlout.exists() else None,
-            "coverage": coverage.read_text()
-            if coverage and coverage.exists()
-            else None,
-        }
+    p = subprocess.Popen(
+        cmd,
+        stdout=stdout.open("w"),
+        stderr=stderr.open("w"),
+        env=env,
+    )
+    p.communicate()
+
+    return p.returncode, {
+        "cmd": cmd,
+        "stdout": stdout.read_text(),
+        "stderr": stderr.read_text(),
+        "tests": xmlout.read_text() if xmlout.exists() else None,
+        "coverage": coverage.read_text() if coverage.exists() else None,
+    }
 
 
 def compute(source: Path, result: dict[str, str | None]) -> str:
@@ -135,48 +111,85 @@ def compute(source: Path, result: dict[str, str | None]) -> str:
     return f"{source.name} {tests}, {coverage}"
 
 
-@cli.driver(add_arguments, process_options, doc=__doc__)
-def main(source: Path, sources_dir: Path, tests_dir: Path) -> int:
+@click.command()
+@click.argument("source", type=click.Path(path_type=Path))
+@click.option(
+    "-t",
+    "--tests-dir",
+    default="tests",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "-s",
+    "--sources-dir",
+    default="src",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option("-v", "--verbose", count=True)
+@click.option("-q", "--quiet", count=True)
+@click.option("-k", "--keep", is_flag=True, help="keep results on error")
+@click.pass_context
+def main(ctx, source, sources_dir, tests_dir, verbose, quiet, keep):
+    level = min(max(verbose - quiet, -1), 1)
+    logging.basicConfig(
+        level=logging.DEBUG
+        if level > 0
+        else logging.INFO
+        if level == 0
+        else logging.WARNING
+    )
+
+    tests_dir = tests_dir.absolute()
+    sources_dir = sources_dir.absolute()
+    source = source.absolute()
+
+    @dc.dataclass
+    class C:
+        tempdir: Path = Path()  # type: ignore
+
+    ctx.ensure_object(C)
+    ctx.obj.tempdir = ctx.with_resource(misc.mkdir(keep=keep))
+
     module = (
         str(source.relative_to(sources_dir).with_suffix(""))
         .replace("/", ".")
         .replace("\\", ".")
     )
+    log.debug("module: %s", module)
     log.debug("sources from: %s", sources_dir)
     log.debug("tests from: %s", tests_dir)
-    log.info("source file: %s (mod %s)", source, module)
+    log.debug("source file: %s (mod %s)", source, module)
 
     candidates = tdd.lookup_candidates(source, sources_dir, tests_dir)
+
     # filter out candidates
     to_be_run = []
     for candidate in candidates:
-        if not candidate.exists():
-            log.debug("skipping missing candidate %s", candidate)
-        else:
-            log.debug("adding candidate %s", candidate)
+        found = "found" if candidate.exists() else "not found"
+        if candidate.exists():
             to_be_run.append(candidate)
+        log.debug("file %s %s", found, candidate)
     candidates = to_be_run
 
-    returncode, result = run(sources_dir, module, candidates, Flags.COVERAGE)
-    # print("== STDERR ==")
-    # print(misc.indent(result["stderr"]))
-    # print("== STDOUT ==")
-    # print(misc.indent(result["stdout"]))
-    # print("== RESULTS ==")
-    # print(misc.indent(result["tests"]))
+    # manages a failure
+    retcode, result = run(ctx.obj.tempdir, module, candidates, sources_dir)
+    if retcode:
+        msgs = []
+        msgs.append("cmd:")
+        msgs.append(f"|  {' '.join(result['cmd'])}")
+        log.warning("failed to run tests")
+        log.warning("\n".join(msgs))
+        if result["stderr"].strip():
+            log.warning("stderr:\n%s", misc.indent(result["stderr"], "|  "))
+        if result["stdout"].strip():
+            log.warning("stdout:\n%s", misc.indent(result["stdout"], "|  "))
 
-    # if result["coverage"]:
-    #     print("== COVERAGE ==")
-    #     print(result["coverage"])
-    # print(str(result["returncode"]))
-    # print("== WOW ==")
+    if keep:
+        log.warning("preserving dir %s", ctx.obj.tempdir)
+
     print(compute(source, result))
-
-    if returncode:
-        if result["stdout"]:
-            log.warning("failure\n%s", misc.indent(result["stdout"], "| "))
-    return returncode
+    return retcode
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main() or 0)
