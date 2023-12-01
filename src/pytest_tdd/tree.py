@@ -165,11 +165,11 @@ def parse(txt: str) -> Tree:
 
 def generate(dstdir: Path, txt: str) -> list[str]:
     tree = parse(txt)
-    tree.root.name = f"{dstdir.resolve()}/"
+    tree.root.name = f"{dstdir.resolve()}{os.sep}"
     tree.generate(dryrun=False)
     result = []
     for path in sorted(dstdir.rglob("*")):
-        rpath = path.relative_to(dstdir)
+        rpath = str(path.relative_to(dstdir)).replace(os.sep, "/")
         result.append(f"{rpath}/" if path.is_dir() else f"{rpath}")
     return result
 
