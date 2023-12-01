@@ -1,3 +1,4 @@
+import os
 import functools
 from pytest_tdd import tdd
 
@@ -14,7 +15,8 @@ def test_lookup(test_tree, tmp_path):
 
     candidates = lookup(tmp_path / "src/package1/modA.py")
 
-    assert set(str(p.relative_to(tmp_path)) for p in candidates) == {
+    found = set(str(p.relative_to(tmp_path)).replace(os.sep, "/") for p in candidates)
+    assert found == {
         "src/package1/tests/test_modA.py",
         "tests/package1/test_modA.py",
         "tests/test_modA.py",
