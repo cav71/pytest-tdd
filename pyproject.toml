@@ -40,11 +40,9 @@ Repository = "https://github.com/cav71/pytest-tdd"
 [project.scripts]
 pytest-tdd = "pytest_tdd:script.main"
 
-
 [tool.hatch.version]
 source = "ci"
 version-file = "src/pytest_tdd/__init__.py"
-
 
 [tool.hatch.build]
 ignore-ci = true
@@ -52,6 +50,7 @@ ignore-ci = true
 [tool.hatch.build.targets.wheel]
 packages = ["src/pytest_tdd"]
 
-[mypy-pytest_tdd.acbox.*]
+[[tool.mypy.overrides]]
+module = "pytest_tdd.acbox.*"
 ignore_errors = true
 
