@@ -12,14 +12,39 @@ import dataclasses as dc
 import click
 
 
+class NodeError(Exception):
+    pass
+
+
+class NodeTypeErrror(NodeError):
+    pass
+
+
+class NodeValueError(NodeError):
+    pass
+
+
 @dc.dataclass
 class Node:
     name: str = ""
     kind: str = "file"
     children: list[Node] = dc.field(default_factory=list)
     parent: Node | None = None
+    xpath: list[str] = dc.field(default_factory=list)
 
-    def level(self):
+    # TODO add this
+    def __post_init__(self):
+        if self.name.endswith("/") or self.name.endswith("\\"):
+            self.kind = "dir"
+            self.name = self.name[:-1]
+
+    def append(self, node: None) -> Node:
+        self.children.append(node)
+        node.parent = self
+        return self
+
+    @property
+    def level(self) -> int:
         counter = 0
         cur = self
         while cur:
@@ -36,7 +61,8 @@ class Node:
             cur = cur.parent  # type: ignore
         return "".join(reversed(key))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        return f"<Node xpath={'/'.join(self.xpath)} kind={self.kind}>"
         key = []
         cur = self
         while cur:
@@ -57,6 +83,58 @@ def dfs(root: Node, fn: Callable[[Node], None]) -> None:
 @dc.dataclass
 class Tree:
     root: Node
+
+    def __post_init__(self):
+        self.root.xpath = [self.root.name]
+
+    def touch(self, dest: list[str] | tuple[str, ...], kind: str | None = None):
+        kind = kind or (
+            "dir" if (dest[-1].endswith("/") or dest[-1].endswith("\\")) else "file"
+        )
+
+        def make_node(
+            parent: Node, key: list[str] | tuple[str, ...], nkind: str | None = None
+        ) -> Node:
+            if parent.kind != "dir":
+                raise NodeTypeErrror(f"trying to insert {key} under {parent}")
+            name = key[-1].rstrip("/").rstrip("\\")
+            found = [child for child in parent.children if (child.xpath[-1] == name)]
+            if found:
+                breakpoint()
+                raise NodeValueError(
+                    f"trying to insert under {parent} a duplicate node {name}"
+                )
+
+            node = Node(name=name, kind="dir" if nkind is None else kind)
+            node.xpath = [*parent.xpath, name]
+            node.parent = parent
+            return node
+
+        assert self.root, "no root defined"
+        cur = self.root
+        breakpoint()
+        level, n = 0, len(dest)
+        while level < (n - 1):
+            for child in cur.children:
+                if child.xpath[level] == dest[level]:
+                    cur = child  # type: ignore
+                    if cur.kind != "dir":
+                        # TODO fix error message
+                        raise NodeTypeErrror(
+                            f"trying to insert a node {dest=} into a non dir node {cur}"
+                        )
+                    break
+            else:
+                node = make_node(cur, dest[: level + 1])
+                cur.children.append(node)
+                cur = cur.children[-1]  # type: ignore
+
+            level += 1
+
+        if level == (n - 1):
+            node = make_node(cur, dest[: level + 1], nkind=kind)
+            cur.children.append(node)
+            pass
 
     def append(self, dest: list[str] | tuple[str, ...]) -> None:
         def make_node(parent: Node, key: list[str] | tuple[str, ...]):
