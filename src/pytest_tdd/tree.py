@@ -115,20 +115,12 @@ class Tree:
         breakpoint()
         level, n = 0, len(dest)
         while level < (n - 1):
-            for child in cur.children:
-                if child.xpath[level] == dest[level]:
-                    cur = child  # type: ignore
-                    if cur.kind != "dir":
-                        # TODO fix error message
-                        raise NodeTypeErrror(
-                            f"trying to insert a node {dest=} into a non dir node {cur}"
-                        )
-                    break
-            else:
+            if cur.xpath[level] != dest[level]:
                 node = make_node(cur, dest[: level + 1])
                 cur.children.append(node)
-                cur = cur.children[-1]  # type: ignore
 
+            found = [ child for child in cur.children if child.xpath[level] == dest[level]]
+            cur = found[0]
             level += 1
 
         if level == (n - 1):
