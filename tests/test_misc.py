@@ -1,28 +1,6 @@
 from pytest_tdd import misc
 
 
-def test_get_doc():
-    txt = """
-'''Hello world
-multi lined
-  comment
-'''
-def init():
-    pass
-"""
-    assert misc.get_doc(txt) == """\
-Hello world
-multi lined
-  comment
-""".rstrip()
-
-    assert misc.get_doc(txt, pre="..") == """\
-..Hello world
-..multi lined
-..  comment
-"""
-
-
 def test_indent():
     txt = """
     This is a simply
@@ -42,6 +20,7 @@ def test_indent():
 
     found = misc.indent(txt[1:-1], "..")
     assert f"\n{found}" == expected
+
 
 def test_list_of_paths():
     from pathlib import Path
@@ -68,6 +47,28 @@ def test_loadmod():
     mod = misc.loadmod(__file__, "xyz")
     assert "test_loadmod" in dir(mod)
     assert mod.__name__ == "xyz"
+
+
+def test_get_doc():
+    txt = """
+'''Hello world
+multi lined
+  comment
+'''
+def init():
+    pass
+"""
+    assert misc.get_doc(txt) == """\
+Hello world
+multi lined
+  comment
+""".rstrip()
+
+    assert misc.get_doc(txt, pre="..") == """\
+..Hello world
+..multi lined
+..  comment
+"""
 
 
 def test_mkdir(tmp_path):

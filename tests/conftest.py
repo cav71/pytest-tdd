@@ -27,7 +27,7 @@ def test_tree():
 """
 
     def create(root):
-        for path in [ f for f in files.split("\n") if f.strip()]:
+        for path in [f for f in files.split("\n") if f.strip()]:
             dst = Path(root) / path.strip()
             dst.parent.mkdir(exist_ok=True, parents=True)
             dst.write_text("")
