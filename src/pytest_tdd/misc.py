@@ -193,4 +193,4 @@ def mkdir(path: Path | None = None, keep: bool = False) -> Generator[Path, None,
         if not keep:
             rmtree(tmpdir, ignore_errors=True)
     except Exception as exc:
-        raise RuntimeError("left temp dir untouched in %s", tmpdir) from exc
+        raise RuntimeError(f"left temp dir untouched in {tmpdir}", tmpdir) from exc
