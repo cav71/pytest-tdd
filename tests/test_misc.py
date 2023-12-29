@@ -82,3 +82,15 @@ def test_mkdir(tmp_path):
         assert tdir.exists()
     assert not tdir.exists()
 
+def test_mkdir_failure(tmp_path):
+    try:
+        with misc.mkdir(tmp_path / "testdir") as tdir:
+            assert tdir.exists()
+            raise RuntimeError("failure")
+    except Exception as e:
+        assert e.args[1] == tdir
+        assert tdir.exists()
+        tdir.rmdir()
+    assert not tdir.exists()
+
+
