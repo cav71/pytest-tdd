@@ -38,9 +38,9 @@ class NodeTypeError(NodeError):
 #     pass
 #
 #
-class Kind(enum.StrEnum):
-    DIR = "dir"
-    FILE = "file"
+class Kind(enum.IntEnum):
+    DIR = 1
+    FILE = 2
 
 
 @dc.dataclass
@@ -404,47 +404,50 @@ def showtree(root: Node) -> None:  # pragma: no cover
 #     return root
 #
 #
-# def parse(txt: str) -> Tree:
-#     SEP = "├└│─\xa0"
-#     SEPS = f"{SEP} "
-#
-#     def flevel(txt):
-#         for index, c in enumerate(txt):
-#             if c in SEPS:
-#                 continue
-#             return int(index / 4), txt[index:]
-#         return 0, None
-#
-#     def skip(txt):
-#         if not txt.strip():
-#             return True
-#         return line.lstrip()[:1] not in SEP
-#
-#     result = []
-#     plevel = None
-#     data = []
-#     for line in txt.split("\n"):
-#         # print(f" > {line.rstrip()} {skip(line)}")
-#         if skip(line):
-#             continue
-#         level, name = flevel(line)
-#         if plevel is None:
-#             plevel = level
-#
-#         if level > plevel:
-#             data.append(name)
-#         elif level < plevel:
-#             data = [*data[:-2], name]
-#         elif level == plevel:
-#             data = [*data[:-1], name]
-#         result.append(data[:])
-#         plevel = level
-#     result.sort()
-#
-#     tree = Tree(Node("", "dir"))
-#     for key in result:
-#         tree.append(key)
-#     return tree
+def parse(txt: str) -> Node | None:
+    SEP = "├└│─\xa0"
+    SEPS = f"{SEP} "
+
+    def flevel(txt):
+        for index, c in enumerate(txt):
+            if c in SEPS:
+                continue
+            return int(index / 4), txt[index:]
+        return 0, None
+
+    def skip(txt):
+        if not txt.strip():
+            return True
+        return line.lstrip()[:1] not in SEP
+
+    result = []
+    plevel = None
+    data = []
+    for line in txt.split("\n"):
+        # print(f" > {line.rstrip()} {skip(line)}")
+        if skip(line):
+            continue
+        level, name = flevel(line)
+        if plevel is None:
+            plevel = level
+
+        if level > plevel:
+            data.append(name)
+        elif level < plevel:
+            data = [*data[:-2], name]
+        elif level == plevel:
+            data = [*data[:-1], name]
+        result.append(data[:])
+        plevel = level
+    result.sort()
+
+    return None
+    # tree = Tree(Node("", "dir"))
+    # for key in result:
+    #     tree.append(key)
+    # return tree
+
+
 #
 #
 # def generate(dstdir: Path, txt: str) -> list[str]:
