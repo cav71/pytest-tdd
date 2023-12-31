@@ -92,6 +92,52 @@ def walk(path: Path) -> Node:
     return root
 
 
+def find(loc: str, root: Node):
+    pass
+
+
+def create(path: Path, root: Node) -> None:
+    # TODO implement this
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+
+    queue = collections.deque([root])
+    while queue:
+        node = queue.popleft()
+        dst = path / node.xpath
+        if node.kind == Kind.FILE:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_text("")
+        else:
+            dst.mkdir(parents=True, exist_ok=True)
+            for child in node.children:
+                queue.appendleft(child)
+
+
+def dumps(root: Node) -> str:
+    # TODO implement this
+    buffer = io.StringIO()
+    queue = collections.deque([(root, "", True)])
+    counter = 0
+    while queue:
+        counter += 1
+        node, indent, is_last = queue.pop()
+        if node.kind == Kind.DIR:
+            print(f"{indent}{'└──' if is_last else '├──'} {node.name}/", file=buffer)
+            for i, child in enumerate(reversed(node.children)):
+                is_last2 = i == 0
+                queue.append(
+                    (
+                        child,
+                        indent + ("    " if is_last else "│\u00A0\u00A0 "),
+                        is_last2,
+                    )
+                )
+        else:
+            print(f"{indent}{'└──' if is_last else '├──'} {node.name}", file=buffer)
+    return buffer.getvalue()
+
+
 def plot(root: Node, buffer: IOType = sys.stdout) -> IOType:  # type: ignore
     print("digraph {", file=buffer)
 

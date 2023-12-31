@@ -3,6 +3,22 @@ from pathlib import Path
 import pytest
 
 @pytest.fixture(scope="function")
+def mktree(tmp_path):
+    def create(txt, subpath=""):
+        for path in [f for f in txt.split("\n") if f.strip()]:
+            dst = Path(tmp_path) / subpath / path.strip()
+            if path.strip().startswith("#"):
+                continue
+            elif path.strip().endswith("/"):
+                dst.mkdir(exist_ok=True, parents=True)
+            else:
+                dst.parent.mkdir(exist_ok=True, parents=True)
+                dst.write_text("")
+        return tmp_path
+    return create
+
+
+@pytest.fixture(scope="function")
 def test_tree():
     files = """
         package2/modF.py
