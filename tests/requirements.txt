@@ -6,6 +6,7 @@ ruff
 typing-extensions
 mypy_extensions
 types-mypy-extensions
+mkdocs
 lxml
 click
 types-click
