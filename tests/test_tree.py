@@ -1,5 +1,5 @@
 from __future__ import annotations
-import sys
+import os
 import collections
 
 import pytest
@@ -90,20 +90,15 @@ def test_create(mktree):
     assert left == right
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="missing tree command")
+@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
 def test_dumps(mktree):
     from subprocess import check_output
-    from os import path
     srcdir = mktree(TREE, "src")
     root = ptree.walk(srcdir)
     found = ptree.dumps(root.children[0])
 
-    cmd = [
-        path.join(path.dirname(sys.executable), "tree"),
-        "-aF", str(srcdir)
-    ]
     # skip the initial and final lines
-    expected = check_output(cmd, encoding="utf-8")
+    expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
     expected = "\n".join(expected.strip().split("\n")[1:-1])
     assert found == expected
 

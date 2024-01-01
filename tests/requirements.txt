@@ -9,4 +9,3 @@ types-mypy-extensions
 lxml
 click
 types-click
-tree
