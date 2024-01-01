@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 import collections
 
 import pytest
@@ -28,17 +29,6 @@ src/package1/subpackageB/modE.py
 src/package1/subpackageB/modD.py
 xyz/abc/
 """
-
-
-def has_tree():
-    from sys import platform
-    from subprocess import call
-    cmd = [
-        "where" if platform == "win32" else "which",
-        "tree"
-    ]
-    return call(cmd) == 0
-
 
 def test_mktree_fixture(mktree):
     dstdir = mktree(TREE)
@@ -100,7 +90,7 @@ def test_create(mktree):
     assert left == right
 
 
-@pytest.mark.skipif(not has_tree(), reason="missing tree command")
+@pytest.mark.skipif(sys.platform == "win32", reason="missing tree command")
 def test_dumps(mktree):
     from subprocess import check_output
     srcdir = mktree(TREE, "src")
