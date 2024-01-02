@@ -1,0 +1,67 @@
+{
+  "files": {
+    "src/package/__init__.py": {
+      "excluded_lines": [],
+      "executed_lines": [
+        0
+      ],
+      "missing_lines": [],
+      "summary": {
+        "covered_lines": 0,
+        "excluded_lines": 0,
+        "missing_lines": 0,
+        "num_statements": 0,
+        "percent_covered": 100.0,
+        "percent_covered_display": "100"
+      }
+    },
+    "src/package/subpackage/__init__.py": {
+      "excluded_lines": [],
+      "executed_lines": [
+        0
+      ],
+      "missing_lines": [],
+      "summary": {
+        "covered_lines": 0,
+        "excluded_lines": 0,
+        "missing_lines": 0,
+        "num_statements": 0,
+        "percent_covered": 100.0,
+        "percent_covered_display": "100"
+      }
+    },
+    "src/package/subpackage/mod.py": {
+      "excluded_lines": [],
+      "executed_lines": [
+        2,
+        3,
+        5
+      ],
+      "missing_lines": [
+        6
+      ],
+      "summary": {
+        "covered_lines": 3,
+        "excluded_lines": 0,
+        "missing_lines": 1,
+        "num_statements": 4,
+        "percent_covered": 75.0,
+        "percent_covered_display": "75"
+      }
+    }
+  },
+  "meta": {
+    "branch_coverage": false,
+    "show_contexts": false,
+    "timestamp": "2024-01-02T23:23:30.577090",
+    "version": "7.4.0"
+  },
+  "totals": {
+    "covered_lines": 3,
+    "excluded_lines": 0,
+    "missing_lines": 1,
+    "num_statements": 4,
+    "percent_covered": 75.0,
+    "percent_covered_display": "75"
+  }
+}

@@ -1,3 +1,5 @@
+from __future__ import annotations
+import dataclasses as dc
 from pathlib import Path
 
 import pytest
@@ -24,37 +26,23 @@ def mktree(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def test_tree():
-    files = """
-        package2/modF.py
-        package2/__init__.py
-        package2/subpackageD/modH.py
-        package2/subpackageD/tests/test_modD.py
-        package2/subpackageC/modG.py
-        tests/test_modG.py
-        tests/test_modD.py
-        tests/package1/subpackageB/test_modC.py
-        tests/package1/test_modA.py
-        tests/subpackageC/test_modG.py
-        src/package1/subpackageA/modC.py
-        src/package1/subpackageA/__init__.py
-        src/package1/__init__.py
-        src/package1/modB.py
-        src/package1/modA.py
-        src/package1/subpackageB/tests/test_modD.py
-        src/package1/subpackageB/__init__.py
-        src/package1/subpackageB/modE.py
-        src/package1/subpackageB/modD.py
-"""
+def resolver(request):
+    @dc.dataclass
+    class Resolver:
+        root: Path
+        name: str
 
-    def create(root):
-        for path in [f for f in files.split("\n") if f.strip()]:
-            dst = Path(root) / path.strip()
-            dst.parent.mkdir(exist_ok=True, parents=True)
-            dst.write_text("")
-    return create
+        def resolve(self, path: Path|str) -> Path:
+            candidates = [
+                self.root / self.name / path,
+                self.root / path,
+            ]
+            for candidate in candidates:
+                if candidate.exists():
+                    return candidate
+            raise FileNotFoundError(f"cannot find {path}", candidates)
 
+    yield Resolver(
+        Path(__file__).parent / "data",
+        request.module.__name__)
 
-if __name__ == "__main__":
-    import sys
-    test_tree.__wrapped__()(sys.argv[1])

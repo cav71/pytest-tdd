@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<testsuites>
+	<testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="0.046" timestamp="2024-01-02T23:07:06.734342" hostname="MACACAVALLO-74592">
+		<testcase classname="tests.package.subpackage.test_mode" name="test_func1[1-2]" time="0.001"/>
+		<testcase classname="tests.package.subpackage.test_mode" name="test_func1[2-4]" time="0.000"/>
+		<testcase classname="tests.package.subpackage.test_mode" name="test_func1[3-99]" time="0.001">
+			<failure message="assert 6 == 99
+ +  where 6 = &lt;function func1 at 0x10260f4c0&gt;(3)
+ +    where &lt;function func1 at 0x10260f4c0&gt; = mod.func1">val = 3, expected = 99
+    @pytest.mark.parametrize(&quot;val,expected&quot;, [
+        (1, 2),
+        (2, 4),
+        (3, 99),
+        (4, 8),
+    ])
+    def test_func1(val, expected):
+&gt;       assert mod.func1(val) == expected
+E       assert 6 == 99
+E        +  where 6 = &lt;function func1 at 0x10260f4c0&gt;(3)
+E        +    where &lt;function func1 at 0x10260f4c0&gt; = mod.func1
+tests/package/subpackage/test_mode.py:12: AssertionError</failure>
+		</testcase>
+		<testcase classname="tests.package.subpackage.test_mode" name="test_func1[4-8]" time="0.000"/>
+	</testsuite>
+</testsuites>
