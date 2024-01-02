@@ -7,10 +7,7 @@ import collections
 import dataclasses as dc
 import enum
 from pathlib import Path
-from typing import TextIO, TypeVar
-
-
-Loc = TypeVar("Loc", str, list[str])
+from typing import TextIO
 
 
 class NodeError(Exception):
@@ -110,7 +107,7 @@ def create(path: Path) -> Node:
     return root
 
 
-def find(root: Node, loc: Loc, create: bool = False) -> Node | None:
+def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
     """find a node starting from root tree"""
     if isinstance(loc, str):
         lloc = collections.deque(loc.rstrip("/").split("/"))
