@@ -1,6 +1,7 @@
 import os
 import functools
 import json
+from pathlib import Path
 
 from pytest_tdd import tdd
 import xml.etree.ElementTree as ET
@@ -115,7 +116,7 @@ def test_func1(val, expected):
     coverage = json.loads(out["coverage"])
     assert len(coverage["files"]) == 3
     assert (
-            coverage["files"]["src/package/subpackage/mod.py"]
+            coverage["files"][str(Path("src/package/subpackage/mod.py"))]
             ["summary"]["percent_covered"] == 75.0
     )
     assert coverage["totals"]["percent_covered"] == 75.0
