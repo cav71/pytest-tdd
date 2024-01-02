@@ -64,7 +64,9 @@ def test_mktree_fixture(mktree):
 def test_create(mktree):
     dstdir = mktree(TREE)
 
-    pytest.raises(ptree.NodeTypeError, ptree.create, dstdir / "tests" / "test_modD.py")
+    pytest.raises(
+        ptree.InvalidNodeType, ptree.create,
+        dstdir / "tests" / "test_modD.py")
     root = ptree.create(dstdir)
 
     # count all nodes
@@ -111,22 +113,22 @@ def test_find(mktree, subtests):
         }
 
     with subtests.test(msg="find-a-non-existing-dir"):
-        assert ptree.find(root, "foo/bar/") is None
+        assert ptree.find(root, "zoo/bar/") is None
 
     with subtests.test(msg="find-and-add-a-non-existing-dir"):
-        node = ptree.find(root,"foo/bar/", create=True)
-        assert node.xpath == ["", "foo", "bar"]
+        node = ptree.find(root,"zoo/bar/", create=True)
+        assert node.xpath == ["", "zoo", "bar"]
         assert counting(root) == {
             ptree.Kind.DIR: 19,  # it includes the root node
             ptree.Kind.FILE: 19
         }
 
     with subtests.test(msg="find-a-non-existing-file"):
-        assert ptree.find(root, "foo/bar/xxx") is None
+        assert ptree.find(root, "zoo/bar/xxx") is None
 
     with subtests.test(msg="find-and-add-a-non-existing-file"):
-        node = ptree.find(root,"foo/bar/xxx", create=True)
-        assert node.xpath == ["", "foo", "bar", "xxx"]
+        node = ptree.find(root,"zoo/bar/xxx", create=True)
+        assert node.xpath == ["", "zoo", "bar", "xxx"]
         assert counting(root) == {
             ptree.Kind.DIR: 19,  # it includes the root node
             ptree.Kind.FILE: 20
@@ -155,15 +157,83 @@ def test_dumps(mktree):
     srcdir = mktree(TREE, "src")
     root = ptree.create(srcdir)
 
-    assert not ptree.find(root, "package2/subpackageD/tests/test_modD.py")
-    assert ptree.find(root, "foo/bar/", create=True)
-    assert ptree.find(root, "foo/bar/xxx", create=True)
+    assert ptree.find(root, "package2/subpackageD/tests/test_modD.py")
+
+    assert not ptree.find(root, "zoo/bar/", create=False)
+    assert ptree.find(root, "zoo/bar/", create=True)
+    assert ptree.find(root, "zoo/bar/xxx", create=True)
     assert counting(root) == {
-        ptree.Kind.DIR: 19,  # it includes the root node
+        ptree.Kind.DIR: 18,  # it includes the root node
         ptree.Kind.FILE: 20
     }
 
-    assert ptree.dumps(root.children[0], nbs=" ") == """\
+    assert ptree.dumps(root, nbs=" ") == """\
+└── /
+    ├── package2/
+    │   ├── __init__.py
+    │   ├── modF.py
+    │   ├── subpackageC/
+    │   │   └── modG.py
+    │   └── subpackageD/
+    │       ├── modH.py
+    │       └── tests/
+    │           └── test_modD.py
+    ├── src/
+    │   └── package1/
+    │       ├── __init__.py
+    │       ├── modA.py
+    │       ├── modB.py
+    │       ├── subpackageA/
+    │       │   ├── __init__.py
+    │       │   └── modC.py
+    │       └── subpackageB/
+    │           ├── __init__.py
+    │           ├── modD.py
+    │           ├── modE.py
+    │           └── tests/
+    │               └── test_modD.py
+    ├── tests/
+    │   ├── package1/
+    │   │   ├── subpackageB/
+    │   │   │   └── test_modC.py
+    │   │   └── test_modA.py
+    │   ├── subpackageC/
+    │   │   └── test_modG.py
+    │   ├── test_modD.py
+    │   └── test_modG.py
+    ├── xyz/
+    │   └── abc/
+    └── zoo/
+        └── bar/
+            └── xxx
+"""
+    assert not (srcdir / "zoo" / "bar").exists()
+    (srcdir / "zoo" / "bar").mkdir(parents=True, exist_ok=True)
+    (srcdir / "zoo" / "bar" / "xxx").write_text("")
+    return srcdir, ptree.dumps(root, nbs="\u00A0")
+
+
+@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
+def test_dumps_unix(mktree):
+    from subprocess import check_output
+
+    srcdir, txt = test_dumps(mktree)
+
+    lines = []
+    for index, line in enumerate(txt.split("\n")):
+        if index == 0:
+            continue
+        lines.append(line[4:])
+    found = "\n".join(lines)
+
+    # skip the initial and final lines
+    expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
+    expected = "\n".join(expected.strip().split("\n")[1:-1])
+    assert found == expected
+
+
+def test_parse():
+    txt = """\
 └── src/
     ├── package2/
     │   ├── __init__.py
@@ -200,19 +270,33 @@ def test_dumps(mktree):
     └── xyz/
         └── abc/
 """
-    return srcdir, ptree.dumps(root.children[0], nbs="\u00A0")
+    root = ptree.parse(txt)
+    assert counting(root) == {
+        ptree.Kind.DIR: 17,  # it includes the root node
+        ptree.Kind.FILE: 19
+    }
 
 
-@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
-def test_dumps_unix(mktree):
-    from subprocess import check_output
+def test_roundtrip(mktree):
+    leftdir = mktree(TREE, "left")
+    rightdir = leftdir.parent / "right"
+    right2dir = leftdir.parent / "right2"
 
-    srcdir, found = test_dumps(mktree)
+    def getfiles(path):
+        return list(p.relative_to(path) for p in path.rglob("*"))
 
-    # skip the initial and final lines
-    expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
-    expected = "\n".join(expected.strip().split("\n")[1:-1])
-    assert found == expected
+    root = ptree.create(leftdir)
+    assert len(getfiles(leftdir)) == 34
+    assert len(getfiles(rightdir)) == 0
+
+    ptree.write(rightdir, root)
+    assert getfiles(leftdir) == getfiles(rightdir)
+
+    txt = ptree.dumps(root)
+    root = ptree.parse(txt)
+    assert len(getfiles(right2dir)) == 0
+    ptree.write(right2dir, root)
+    assert getfiles(leftdir) == getfiles(right2dir)
 
 
 

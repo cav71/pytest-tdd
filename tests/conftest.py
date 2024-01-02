@@ -14,7 +14,7 @@ def mktree(tmp_path):
             else:
                 dst.parent.mkdir(exist_ok=True, parents=True)
                 dst.write_text("")
-        return tmp_path
+        return tmp_path / subpath
     return create
 
 

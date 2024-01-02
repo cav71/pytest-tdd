@@ -14,7 +14,7 @@ class NodeError(Exception):
     pass
 
 
-class NodeTypeError(NodeError):
+class InvalidNodeType(NodeError):
     pass
 
 
@@ -34,14 +34,17 @@ class Kind(enum.IntEnum):
 @dc.dataclass
 class Node:
     name: str
-    kind: Kind
+    kind: Kind | None = None
     children: list[Node] = dc.field(default_factory=list)
     parent: Node | None = None
 
     def __post_init__(self):
         if self.name.endswith("/"):
+            if self.kind is None:
+                self.kind = Kind.DIR
             if self.kind != Kind.DIR:
                 raise InvalidNodeName(f"cannot use {self.name=} for a non dir")
+        assert self.kind
         self.name = self.name.rstrip("/")
 
     def append(self, node: Node) -> None:
@@ -52,7 +55,7 @@ class Node:
         return (
             f"<{self.__class__.__name__} "
             f"name='{self.name}' "
-            f"kind={self.kind} "
+            f"kind={self.kind.name if self.kind else self.kind} "
             f"parent={self.parent.name if self.parent else None} "
             f"children={len(self.children)} "
             f"at {hex(id(self))}>"
@@ -83,11 +86,11 @@ def create(path: Path) -> Node:
         A Node object representing the root of the directory tree.
 
     Raises:
-        NodeTypeError: If the specified path is not a directory.
+        InvalidNodeType: If the specified path is not a directory.
 
     """
     if not path.is_dir():
-        raise NodeTypeError("path is not a directory", path)
+        raise InvalidNodeType("path is not a directory", path)
 
     root = Node("", Kind.DIR)
     queue = collections.deque([root])
@@ -114,11 +117,13 @@ def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
         if loc.endswith("/"):
             lloc[-1] = f"{lloc[-1]}/"
     else:
-        lloc = collections.deque(loc)
+        lloc = collections.deque(loc[:])
     kind = Kind.FILE
     if lloc[-1].endswith("/"):
         kind = Kind.DIR
         lloc[-1] = lloc[-1].rstrip("/")
+    for i in range(len(lloc)):
+        lloc[i] = lloc[i].rstrip("/")
 
     def lookup(node: Node, key: str) -> list[Node]:
         return [child for child in node.children if child.name == key]
@@ -129,6 +134,10 @@ def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
         found = lookup(cur, path)
         if not found:
             if create:
+                if cur.kind == Kind.FILE:
+                    raise InvalidNodeType(
+                        f"cannot insert {path=} under {cur=}", cur, path
+                    )
                 cur.append(Node(path.rstrip("/"), Kind.DIR if lloc else kind))
             else:
                 return None
@@ -146,6 +155,7 @@ def write(path: Path, root: Node) -> None:
     while queue:
         node = queue.popleft()
         dst = path / node.path
+        dst.relative_to(path)
         if node.kind == Kind.FILE:
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_text("")
@@ -181,43 +191,35 @@ def dumps(root: Node, nbs: str = " ") -> str:
 
 
 def parse(txt: str) -> Node | None:
-    SEP = "├└│─\xa0"
-    SEPS = f"{SEP} "
-
-    def flevel(txt):
-        for index, c in enumerate(txt):
-            if c in SEPS:
-                continue
-            return int(index / 4), txt[index:]
-        return 0, None
-
-    def skip(txt):
-        if not txt.strip():
-            return True
-        return line.lstrip()[:1] not in SEP
-
+    plevel = 0
+    sep = "─ "
     result = []
-    plevel = None
-    data = []
+    context: collections.deque[str] = collections.deque()
     for line in txt.split("\n"):
-        # print(f" > {line.rstrip()} {skip(line)}")
-        if skip(line):
+        if sep not in line:
             continue
-        level, name = flevel(line)
-        if plevel is None:
-            plevel = level
-
+        index = line.find(sep) + len(sep)
+        level = index // 4
+        key = line[index:].rstrip()
         if level > plevel:
-            data.append(name)
-        elif level < plevel:
-            data = [*data[:-2], name]
+            context.append(key)
+            plevel = level
         elif level == plevel:
-            data = [*data[:-1], name]
-        result.append(data[:])
-        plevel = level
-    result.sort()
+            result.append(list(context))
+            context[-1] = key
+        else:
+            result.append(list(context))
+            for _ in range(plevel - level + 1):
+                context.pop()
+            context.append(key)
+            plevel = level
+    if context:
+        result.append(list(context))
 
-    return None
+    root = Node("/")
+    for path in result:
+        find(root, path, create=True)
+    return root
 
 
 def plot(root: Node, buffer: TextIO = sys.stdout) -> TextIO:  # type: ignore
@@ -251,20 +253,34 @@ def plot(root: Node, buffer: TextIO = sys.stdout) -> TextIO:  # type: ignore
 
 
 def showtree(root: Node) -> None:  # pragma: no cover
+    from time import sleep
+    from contextlib import ExitStack
     from tempfile import NamedTemporaryFile
     from subprocess import check_call, call
+
+    if sys.platform != "darwin":
+        raise NotImplementedError(f"cannot use this on {sys.platform}")
 
     buffer = plot(root, io.StringIO())
     if not hasattr(buffer, "getvalue"):
         return
     txt = buffer.getvalue()
 
-    with NamedTemporaryFile() as out:
-        out.write(txt.encode("utf-8"))
-        out.flush()
-        dot = Path(sys.executable).parent / "dot"
-        check_call([str(c) for c in [dot, "-Tpng", "-odeleteme.png", out.name]])
-        call(["open", "deleteme.png"])
+    with ExitStack() as stack:
+        dotout = stack.enter_context(NamedTemporaryFile())
+        pngout = stack.enter_context(NamedTemporaryFile(suffix=".png"))
+        dotout.write(txt.encode("utf-8"))
+        dotout.flush()
+        cmd = [
+            Path(sys.executable).parent / "dot",
+            "-Tpng",
+            f"-o{pngout.name}",
+            dotout.name,
+        ]
+        check_call([str(c) for c in cmd])
+        pngout.file.flush()
+        call(["open", pngout.name])
+        sleep(1)
 
 
 #
