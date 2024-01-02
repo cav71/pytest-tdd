@@ -30,7 +30,22 @@ src/package1/subpackageB/modD.py
 xyz/abc/
 """
 
+def counting(root: ptree.Node) -> dict[ptree.Kind, int]:
+    counters = { ptree.Kind.DIR: 0,
+                 ptree.Kind.FILE: 0
+    }
+    queue = collections.deque([root])
+    while queue:
+        n = len(queue)
+        for _ in range(n):
+            node = queue.popleft()
+            counters[node.kind] += 1
+            queue.extendleft(node.children)
+    return counters
+
+
 def test_mktree_fixture(mktree):
+    "create a dir tree (internal)"
     dstdir = mktree(TREE)
 
     assert (dstdir / "package2/modF.py").exists()
@@ -46,24 +61,14 @@ def test_mktree_fixture(mktree):
     assert dirs == 15
 
 
-def test_walk(mktree):
+def test_create(mktree):
     dstdir = mktree(TREE)
 
-    pytest.raises(ptree.NodeTypeError, ptree.walk, dstdir / "tests" / "test_modD.py")
-    root = ptree.walk(dstdir)
+    pytest.raises(ptree.NodeTypeError, ptree.create, dstdir / "tests" / "test_modD.py")
+    root = ptree.create(dstdir)
 
     # count all nodes
-    counters = { ptree.Kind.DIR: 0,
-                 ptree.Kind.FILE: 0
-    }
-    queue = collections.deque([root])
-    while queue:
-        n = len(queue)
-        for _ in range(n):
-            node = queue.popleft()
-            counters[node.kind] += 1
-            queue.extendleft(node.children)
-    assert counters == {
+    assert counting(root) == {
         ptree.Kind.DIR: 16,  # it includes the root node
         ptree.Kind.FILE: 19
     }
@@ -72,17 +77,73 @@ def test_walk(mktree):
     #   from subprocess import check_output
     #   print(check_output(["tree", "-aF", str(dstdir)], encoding="utf-8"))
 
-def test_create(mktree):
+
+def test_find(mktree, subtests):
+    dstdir = mktree(TREE)
+    root = ptree.create(dstdir)
+
+    with subtests.test(msg="initial-check"):
+        assert counting(root) == {
+            ptree.Kind.DIR: 16,  # it includes the root node
+            ptree.Kind.FILE: 19
+        }
+
+    with subtests.test(msg="find-an-existing-path"):
+        node = ptree.find(root, "package2/subpackageD/tests/test_modD.py")
+        assert node.xpath == [
+            "", "package2", "subpackageD", "tests", "test_modD.py"
+        ]
+        assert node.kind == ptree.Kind.FILE
+        assert counting(root) == {
+            ptree.Kind.DIR: 16,  # it includes the root node
+            ptree.Kind.FILE: 19
+        }
+
+    with subtests.test(msg="find-a-non-existing-root-dir"):
+        assert ptree.find(root, "booo/") is None
+
+    with subtests.test(msg="find-and-add-a-non-existing-root-dir"):
+        node = ptree.find(root,"booo/", create=True)
+        assert node.xpath == ["", "booo"]
+        assert counting(root) == {
+            ptree.Kind.DIR: 17,  # it includes the root node
+            ptree.Kind.FILE: 19
+        }
+
+    with subtests.test(msg="find-a-non-existing-dir"):
+        assert ptree.find(root, "foo/bar/") is None
+
+    with subtests.test(msg="find-and-add-a-non-existing-dir"):
+        node = ptree.find(root,"foo/bar/", create=True)
+        assert node.xpath == ["", "foo", "bar"]
+        assert counting(root) == {
+            ptree.Kind.DIR: 19,  # it includes the root node
+            ptree.Kind.FILE: 19
+        }
+
+    with subtests.test(msg="find-a-non-existing-file"):
+        assert ptree.find(root, "foo/bar/xxx") is None
+
+    with subtests.test(msg="find-and-add-a-non-existing-file"):
+        node = ptree.find(root,"foo/bar/xxx", create=True)
+        assert node.xpath == ["", "foo", "bar", "xxx"]
+        assert counting(root) == {
+            ptree.Kind.DIR: 19,  # it includes the root node
+            ptree.Kind.FILE: 20
+        }
+
+
+def test_write(mktree):
     srcdir = mktree(TREE, "src")
     dstdir = srcdir.parent / "dst"
 
-    root = ptree.walk(srcdir)
+    root = ptree.create(srcdir)
     left = list(sorted({
         (path.relative_to(srcdir), path.is_dir())
         for path in srcdir.rglob("*")
     }))
 
-    ptree.create(dstdir, root)
+    ptree.write(dstdir, root)
     right = list(sorted({
         (path.relative_to(dstdir), path.is_dir())
         for path in dstdir.rglob("*")
@@ -90,12 +151,63 @@ def test_create(mktree):
     assert left == right
 
 
-@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
 def test_dumps(mktree):
-    from subprocess import check_output
     srcdir = mktree(TREE, "src")
-    root = ptree.walk(srcdir)
-    found = ptree.dumps(root.children[0])
+    root = ptree.create(srcdir)
+
+    assert not ptree.find(root, "package2/subpackageD/tests/test_modD.py")
+    assert ptree.find(root, "foo/bar/", create=True)
+    assert ptree.find(root, "foo/bar/xxx", create=True)
+    assert counting(root) == {
+        ptree.Kind.DIR: 19,  # it includes the root node
+        ptree.Kind.FILE: 20
+    }
+
+    assert ptree.dumps(root.children[0], nbs=" ") == """\
+└── src/
+    ├── package2/
+    │   ├── __init__.py
+    │   ├── modF.py
+    │   ├── subpackageC/
+    │   │   └── modG.py
+    │   └── subpackageD/
+    │       ├── modH.py
+    │       └── tests/
+    │           └── test_modD.py
+    ├── src/
+    │   └── package1/
+    │       ├── __init__.py
+    │       ├── modA.py
+    │       ├── modB.py
+    │       ├── subpackageA/
+    │       │   ├── __init__.py
+    │       │   └── modC.py
+    │       └── subpackageB/
+    │           ├── __init__.py
+    │           ├── modD.py
+    │           ├── modE.py
+    │           └── tests/
+    │               └── test_modD.py
+    ├── tests/
+    │   ├── package1/
+    │   │   ├── subpackageB/
+    │   │   │   └── test_modC.py
+    │   │   └── test_modA.py
+    │   ├── subpackageC/
+    │   │   └── test_modG.py
+    │   ├── test_modD.py
+    │   └── test_modG.py
+    └── xyz/
+        └── abc/
+"""
+    return srcdir, ptree.dumps(root.children[0], nbs="\u00A0")
+
+
+@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
+def test_dumps_unix(mktree):
+    from subprocess import check_output
+
+    srcdir, found = test_dumps(mktree)
 
     # skip the initial and final lines
     expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
@@ -198,8 +310,8 @@ def test_dumps(mktree):
 #         """
 # my-project/
 # ├── src/
-# │   └── my_package/
-# │       └── module1.py
+# │   └── my_package/
+# │       └── module1.py
 # └── tests/
 #     └── test_module1.py
 #

@@ -2,6 +2,7 @@ mypy
 pre-commit
 pytest-cov
 pytest-html
+pytest-subtests
 ruff
 typing-extensions
 mypy_extensions
