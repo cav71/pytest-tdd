@@ -1,6 +1,7 @@
 # # tree -aF layouts/my-project
 from __future__ import annotations
 
+import argparse
 import sys
 import io
 import collections
@@ -171,20 +172,27 @@ def dumps(root: Node, nbs: str = " ") -> str:
     buffer = io.StringIO()
     queue = collections.deque([(root, "", True)])
     counter = 0
+    head = True
     while queue:
         counter += 1
         node, indent, is_last = queue.pop()
         if node.kind == Kind.DIR:
-            print(f"{indent}{'└──' if is_last else '├──'} {node.name}/", file=buffer)
+            pre = "" if head else "└── " if is_last else "├── "
+            print(f"{indent}{pre}{node.name}/", file=buffer)
             for i, child in enumerate(reversed(node.children)):
                 is_last2 = i == 0
+                mid = indent + ("    " if is_last else f"│{nbs}{nbs} ")
+                if head:
+                    mid = "" if is_last else f"│{nbs}{nbs} "
                 queue.append(
                     (
                         child,
-                        indent + ("    " if is_last else f"│{nbs}{nbs} "),
+                        mid,
                         is_last2,
                     )
                 )
+            if head:
+                head = False
         else:
             print(f"{indent}{'└──' if is_last else '├──'} {node.name}", file=buffer)
     return buffer.getvalue()
@@ -283,96 +291,24 @@ def showtree(root: Node) -> None:  # pragma: no cover
         sleep(1)
 
 
-#
-# def ls(path):
-#     from collections import deque
-#
-#     root = Node(path.name, "dir")
-#     for sub in path.rglob("*"):
-#         cur = root
-#         subpath = sub.relative_to(path)
-#         queue = deque(str(subpath).split(os.sep))
-#         while queue:
-#             node = queue.popleft()
-#             child = ([c for c in cur.children if c.name == node] or [None])[0]
-#             if not child:
-#                 node = Node(
-#                     node, "dir" if queue else "dir" if subpath.is_dir() else "file"
-#                 )
-#                 cur.children.append(node)
-#                 cur = cur.children[-1]
-#             else:
-#                 cur = child
-#     return root
-#
-#
-# tree = Tree(Node("", "dir"))
-# for key in result:
-#     tree.append(key)
-# return tree
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--copy", type=Path, help="destination directory")
+    parser.add_argument("srcdir", type=Path, help="source directory")
+    args = parser.parse_args()
+
+    if not args.srcdir.exists():
+        parser.error(f"dir not found, {args.srcdir}")
+    if not args.srcdir.is_dir():
+        parser.error(f"path is not a dir, {args.srcdir}")
+
+    root = create(args.srcdir)
+    if args.copy:
+        write(args.copy, root)
+
+    root.name = args.srcdir
+    print(dumps(root))
 
 
-#
-#
-# def generate(dstdir: Path, txt: str) -> list[str]:
-#     tree = parse(txt)
-#     tree.root.name = f"{dstdir.resolve()}{os.sep}"
-#     tree.generate(dryrun=False)
-#     result = []
-#     for path in sorted(dstdir.rglob("*")):
-#         rpath = str(path.relative_to(dstdir)).replace(os.sep, "/")
-#         result.append(f"{rpath}/" if path.is_dir() else f"{rpath}")
-#     return result
-#
-#
-# @click.group()
-# def main():
-#     pass
-#
-#
-# @main.command()
-# @click.argument("destdir", type=click.Path(path_type=Path))  # type: ignore
-# @click.option("-g", "--generate", is_flag=True)
-# @click.argument("src", type=click.File("r"))
-# def create(destdir, src, generate):
-#     """regenerates a new directory tree from the `tree -aF` output
-# src/pytest_tdd/tree.py
-#     \b
-#     Eg.
-#         # this will regenerate the directory tree layouts/my-project
-#         # under destdir
-#
-#         tree -aF layouts/my-project | \\
-#           python -m pytest_tdd.tree create --generate destdir -
-#     """
-#     if destdir.exists():
-#         raise click.UsageError(f"dest dir present '{destdir}'")
-#
-#     tree = parse(src.read())
-#     tree.root.name = str(destdir.expanduser().resolve()) + "/"
-#     tree.generate(not generate)
-#
-#
-# def xmain():
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument("command", choices=["ls", "tojson"])
-#     parser.add_argument("value", nargs="?", type=Path)
-#     args = parser.parse_args()
-#
-#     # tree -aF layouts/my-project
-#     if args.command == "ls":
-#         if not args.value or not args.value.exists():
-#             parser.error(f"missing or not existing {args.value=}")
-#         ls(args.value)
-#     else:
-#         if args.value in {"-", None}:
-#             tree = parse(sys.stdin.read())
-#         else:
-#             tree = parse(args.value.read_text())
-#         dfs(tree.root, lambda n: print(f" {n=}"))
-#         breakpoint()
-#         pass
-#
-#
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()

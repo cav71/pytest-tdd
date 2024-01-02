@@ -136,7 +136,7 @@ def test_find(mktree, subtests):
 
 
 def test_write(mktree):
-    srcdir = mktree(TREE, "src")
+    srcdir = mktree(TREE, subpath="src")
     dstdir = srcdir.parent / "dst"
 
     root = ptree.create(srcdir)
@@ -154,7 +154,7 @@ def test_write(mktree):
 
 
 def test_dumps(mktree):
-    srcdir = mktree(TREE, "src")
+    srcdir = mktree(TREE, subpath="src")
     root = ptree.create(srcdir)
 
     assert ptree.find(root, "package2/subpackageD/tests/test_modD.py")
@@ -168,44 +168,44 @@ def test_dumps(mktree):
     }
 
     assert ptree.dumps(root, nbs=" ") == """\
-└── /
-    ├── package2/
-    │   ├── __init__.py
-    │   ├── modF.py
-    │   ├── subpackageC/
-    │   │   └── modG.py
-    │   └── subpackageD/
-    │       ├── modH.py
-    │       └── tests/
-    │           └── test_modD.py
-    ├── src/
-    │   └── package1/
-    │       ├── __init__.py
-    │       ├── modA.py
-    │       ├── modB.py
-    │       ├── subpackageA/
-    │       │   ├── __init__.py
-    │       │   └── modC.py
-    │       └── subpackageB/
-    │           ├── __init__.py
-    │           ├── modD.py
-    │           ├── modE.py
-    │           └── tests/
-    │               └── test_modD.py
-    ├── tests/
-    │   ├── package1/
-    │   │   ├── subpackageB/
-    │   │   │   └── test_modC.py
-    │   │   └── test_modA.py
-    │   ├── subpackageC/
-    │   │   └── test_modG.py
-    │   ├── test_modD.py
-    │   └── test_modG.py
-    ├── xyz/
-    │   └── abc/
-    └── zoo/
-        └── bar/
-            └── xxx
+/
+├── package2/
+│   ├── __init__.py
+│   ├── modF.py
+│   ├── subpackageC/
+│   │   └── modG.py
+│   └── subpackageD/
+│       ├── modH.py
+│       └── tests/
+│           └── test_modD.py
+├── src/
+│   └── package1/
+│       ├── __init__.py
+│       ├── modA.py
+│       ├── modB.py
+│       ├── subpackageA/
+│       │   ├── __init__.py
+│       │   └── modC.py
+│       └── subpackageB/
+│           ├── __init__.py
+│           ├── modD.py
+│           ├── modE.py
+│           └── tests/
+│               └── test_modD.py
+├── tests/
+│   ├── package1/
+│   │   ├── subpackageB/
+│   │   │   └── test_modC.py
+│   │   └── test_modA.py
+│   ├── subpackageC/
+│   │   └── test_modG.py
+│   ├── test_modD.py
+│   └── test_modG.py
+├── xyz/
+│   └── abc/
+└── zoo/
+    └── bar/
+        └── xxx
 """
     assert not (srcdir / "zoo" / "bar").exists()
     (srcdir / "zoo" / "bar").mkdir(parents=True, exist_ok=True)
@@ -217,19 +217,12 @@ def test_dumps(mktree):
 def test_dumps_unix(mktree):
     from subprocess import check_output
 
-    srcdir, txt = test_dumps(mktree)
-
-    lines = []
-    for index, line in enumerate(txt.split("\n")):
-        if index == 0:
-            continue
-        lines.append(line[4:])
-    found = "\n".join(lines)
+    srcdir, found = test_dumps(mktree)
 
     # skip the initial and final lines
     expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
     expected = "\n".join(expected.strip().split("\n")[1:-1])
-    assert found == expected
+    assert found[2:] == expected
 
 
 def test_parse():
@@ -278,133 +271,42 @@ def test_parse():
 
 
 def test_roundtrip(mktree):
-    leftdir = mktree(TREE, "left")
-    rightdir = leftdir.parent / "right"
-    right2dir = leftdir.parent / "right2"
-
     def getfiles(path):
         return list(p.relative_to(path) for p in path.rglob("*"))
 
-    root = ptree.create(leftdir)
+    # create a fs tree under srcdir
+    leftdir = mktree(TREE, subpath="left")
     assert len(getfiles(leftdir)) == 34
-    assert len(getfiles(rightdir)) == 0
 
-    ptree.write(rightdir, root)
-    assert getfiles(leftdir) == getfiles(rightdir)
+    # generate the tree structure in root
+    # and generate a fs dump under destdir
+    root = ptree.create(leftdir)
+    destdir = leftdir.parent / "right"
+    assert len(getfiles(destdir)) == 0
+    ptree.write(destdir, root)
+    assert getfiles(leftdir) == getfiles(destdir)
 
+    # generate a str representation of root
     txt = ptree.dumps(root)
     root = ptree.parse(txt)
-    assert len(getfiles(right2dir)) == 0
-    ptree.write(right2dir, root)
-    assert getfiles(leftdir) == getfiles(right2dir)
+    destdir = leftdir.parent / "right2"
+    assert len(getfiles(destdir)) == 0
+    ptree.write(destdir, root)
+    assert getfiles(leftdir) == getfiles(destdir)
 
 
-
-# def getnodes(tree: ptree.Tree) -> list[str]:
-#     values = []
-#
-#     def acc(node):
-#         values.append(node.path)
-#
-#     ptree.dfs(tree.root, acc)
-#     return values
-#
-#
-# def test_node():
-#     a = N("A")
-#     b = N("B")
-#     c = N("C")
-#     root = a.append(b).append(c)
-#     assert root.level == 1
-#     assert b.level == 2
-#
-#
-# def test_dfs():
-#     root = N(
-#         "A",
-#         children=[
-#             N(
-#                 "B",
-#                 children=[
-#                     N("B1"),
-#                     N(
-#                         "B2",
-#                         children=[
-#                             N("B21"),
-#                         ],
-#                     ),
-#                 ],
-#             ),
-#             N(
-#                 "C",
-#                 children=[
-#                     N("C1"),
-#                 ],
-#             ),
-#             N("D", children=[]),
-#         ],
-#     )
-#
-#     values = []
-#
-#     def acc(node):
-#         values.append(node.name)
-#
-#     ptree.dfs(root, acc)
-#     assert values == ["A", "D", "C", "C1", "B", "B2", "B21", "B1"]
-#
-#
-# def test_tree_append():
-#     tree = ptree.Tree(N("A/"))
-#
-#     tree.touch(["A/", "B/"])
-#     tree.touch(["A/", "B/", "C1/"])
-#     tree.touch(["A/", "B/", "B1"])
-#     tree.touch(["A/", "B/", "B2"])
-#     return
-#
-#     # tree.append(["A/",])
-#     # tree.append(["A/", "B/"])
-#     # tree.append(["A/", "B/", "C1/"])
-#     # tree.append(["A/", "B/", "B1"])
-#     # tree.append(["A/", "B/", "B2"])
-#
-#     # tree.append("A/B/C1".split("/"))
-#     # tree.append("A/B/B1".split("/"))
-#     # tree.append("A/B/B2".split("/"))
-#     # tree.append("A/C/C1/C1a".split("/"))
-#     # tree.append("A/D".split("/"))
-#     assert getnodes(tree) == [
-#         "/root/",
-#         "/root/A/",
-#         "/root/A/B/",
-#         "/root/A/B/B2",
-#         "/root/A/B/B1",
-#         "/root/A/B/C1/",
-#     ]
-#
-#     breakpoint()
-#     tree.touch(["A/", "B"])
-#     pytest.raises(ptree.NodeValueError, tree.touch, ["A/", "B"])
-#
-#
-# def test_generate(tmp_path):
-#     found = ptree.generate(
-#         tmp_path,
-#         """
-# my-project/
-# ├── src/
-# │   └── my_package/
-# │       └── module1.py
-# └── tests/
-#     └── test_module1.py
-#
-# """,
-#     )
-#     assert set(found) == {
-#         "src/",
-#         "src/my_package/",
-#         "src/my_package/module1.py",
-#         "src/tests/",
-#         "src/tests/test_module1.py",
-#     }
+def test_conftest(mktree):
+    srcdir = mktree("""
+└── my-project/
+    ├── src/
+    │   └── my_package/
+    │       └── module1.py
+    └── tests/
+        └── test_module1.py
+""", subpath="x")
+    root = ptree.create(srcdir)
+    assert (root.name, root.kind) == ("", ptree.Kind.DIR)
+    assert counting(root) == {
+        ptree.Kind.FILE: 2,
+        ptree.Kind.DIR: 4+1,
+    }
