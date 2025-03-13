@@ -1,8 +1,7 @@
 from __future__ import annotations
 import dataclasses as dc
-from contextlib import _GeneratorContextManager
 from pathlib import Path
-from typing import Callable, Generator, TYPE_CHECKING, Never, Iterator
+from typing import Callable, Generator, TYPE_CHECKING
 
 import pytest
 
