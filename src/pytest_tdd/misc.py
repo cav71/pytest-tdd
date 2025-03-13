@@ -178,14 +178,14 @@ def get_doc(src: str | Path, pre: str | None = None) -> str | None:
         '!!The content of __doc__
         '!!with multiline'
     """
-    from ast import parse, NodeVisitor, get_docstring
+    from ast import parse, NodeVisitor, Module, get_docstring
 
     class Visitor(NodeVisitor):
-        def __init__(self):
-            self.doc = None
+        def __init__(self) -> None:
+            self.doc: str | None = None
             super().__init__()
 
-        def visit_Module(self, node):
+        def visit_Module(self, node: Module) -> Any:
             assert self.doc is None, "module has two heads?"
             self.doc = get_docstring(node, clean=True)
             return super().generic_visit(node)

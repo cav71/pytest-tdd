@@ -50,13 +50,13 @@ jobs:
 #         run: |
 #            ruff check .
 # 
-#       - name: Static checks (mypy)
-#         shell: bash
-#         env:
-#           OUTDIR: build/qa-${{ matrix.python-version }}-${{ matrix.os}}
-#         run: |
-#           mypy src \
-#             --no-incremental --xslt-html-report $OUTDIR/mypy
+      - name: Static checks (mypy)
+        shell: bash
+        env:
+          OUTDIR: build/qa-${{ matrix.python-version }}-${{ matrix.os}}
+        run: |
+          mypy src tests/conftest.py \
+            --no-incremental --xslt-html-report $OUTDIR/mypy
 
       - name: Runtime checks (pytest, coverage etc.)
         shell: bash

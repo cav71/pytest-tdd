@@ -90,7 +90,7 @@ class Node:
     children: list[Node] = dc.field(default_factory=list)
     parent: Node | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.name.endswith("/"):
             if self.kind is None:
                 self.kind = Kind.DIR
@@ -103,7 +103,7 @@ class Node:
         node.parent = self
         self.children.append(node)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} "
             f"name='{self.name}' "
@@ -119,7 +119,7 @@ class Node:
         cur: Node | None = self
         while cur is not None:
             result.append(cur.name)
-            cur = cur.parent  # type: ignore
+            cur = cur.parent
         return list(reversed(result))
 
     @property
@@ -147,9 +147,9 @@ def create(path: Path | str) -> Node:
             >>> tree.create(Path("somedir"))
             Node(name='somedir', ...)
     """
-    path : Path = Path(path)
-    if not path.is_dir():
-        raise InvalidNodeType("path is not a directory", path)
+    src = Path(path)
+    if not src.is_dir():
+        raise InvalidNodeType("path is not a directory", src)
 
     root = Node("", Kind.DIR)
     queue = collections.deque([root])
@@ -157,7 +157,7 @@ def create(path: Path | str) -> Node:
         n = len(queue)
         for i in range(n):
             cur = queue.popleft()
-            if not (sub := (path / cur.path)).is_dir():
+            if not (sub := (src / cur.path)).is_dir():
                 continue
             for child in sorted(sub.glob("*")):
                 node = Node(
@@ -238,16 +238,16 @@ def write(path: Path | str, root: Node) -> None:
         root: The root node of the tree structure to be written, which determines the
             hierarchy of files and directories to be generated.
     """
-    path: Path = Path(path)
+    dstdir = Path(path)
 
-    if not path.exists():
-        path.mkdir(parents=True, exist_ok=True)
+    if not dstdir.exists():
+        dstdir.mkdir(parents=True, exist_ok=True)
 
     queue = collections.deque([root])
     while queue:
         node = queue.popleft()
-        dst = path / node.path
-        dst.relative_to(path)
+        dst = dstdir / node.path
+        dst.relative_to(dst)
         if node.kind == Kind.FILE:
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_text("")
@@ -337,7 +337,7 @@ def parse(txt: str) -> Node | None:
     return root
 
 
-def plot(root: Node, buffer: TextIO = sys.stdout) -> TextIO:  # type: ignore
+def plot(root: Node, buffer: TextIO = sys.stdout) -> TextIO:
     print("digraph {", file=buffer)
 
     mapper = {}
@@ -403,7 +403,7 @@ def showtree(root: Node) -> None:  # pragma: no cover
         sleep(1)
 
 
-def main():
+def main() -> None:
     class F(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         pass
 

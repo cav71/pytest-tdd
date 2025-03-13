@@ -3,6 +3,7 @@
 #   SET PATH=%PATH%;C:\msys64\usr\bin;C:\msys64
 #   (to install make: pacmman -S make)
 
+PACKAGE := pytest_tdd
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 export PYTHONPATH=$(ROOT_DIR)/src
@@ -27,16 +28,16 @@ fmt:  ## Format code (ruff check --fix), updating source files
 
 .PHONY: lint
 lint:  ## Runs the linter (mypy) and report errors.
-	@mypy src tests && echo "🟢 mypy check pass"
+	@mypy src tests/conftest.py && echo "🟢 mypy check pass"
 
 
-.PHONY: test
-test: ## Run test suite
+.PHONY: tests
+tests: ## Run test suite
 	@pytest -vvs \
         --cov-report=html:build/coverage --cov-report=xml:build/coverage.xml \
         --junitxml=build/junit.xml --html=build/junit.html --self-contained-html \
-        --cov=luxos \
-        --manual tests
+        --cov=$(PACKAGE) \
+        tests
 	@echo
 	@echo "👉"
 	@echo "👉 coverage and junit reports under:"

@@ -18,10 +18,12 @@ import logging
 import subprocess
 import json
 import dataclasses as dc
+from typing import Any
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
 import click
+from click.core import Context
 
 
 from pytest_tdd import misc, tdd
@@ -81,7 +83,7 @@ def run(
     }
 
 
-def compute(source: Path, result: dict[str, str | None]) -> str:
+def compute(source: Path, result: dict[str, Any]) -> str:
     coverage = "coverage n/a"
     if result["coverage"]:
         cov = json.loads(result["coverage"])
@@ -111,24 +113,25 @@ def compute(source: Path, result: dict[str, str | None]) -> str:
 
 
 @click.command()
-@click.argument("source", type=click.Path(path_type=Path))  # type: ignore
+@click.argument("source", type=click.Path(path_type=Path))
 @click.option(
     "-t",
     "--tests-dir",
     default="tests",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),  # type: ignore
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
 )
 @click.option(
     "-s",
     "--sources-dir",
     default="src",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),  # type: ignore
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
 )
 @click.option("-v", "--verbose", count=True)
 @click.option("-q", "--quiet", count=True)
 @click.option("-k", "--keep", is_flag=True, help="keep results on error")
 @click.pass_context
-def main(ctx, source, sources_dir, tests_dir, verbose, quiet, keep):
+def main(ctx: Context, source: Path, sources_dir: Path, tests_dir: Path, verbose: int, quiet: int, keep: bool) -> int:
+    breakpoint()
     level = min(max(verbose - quiet, -1), 1)
     logging.basicConfig(
         level=logging.DEBUG
@@ -144,7 +147,7 @@ def main(ctx, source, sources_dir, tests_dir, verbose, quiet, keep):
 
     @dc.dataclass
     class C:
-        tempdir: Path = Path()  # type: ignore
+        tempdir: Path = Path()
 
     ctx.ensure_object(C)
     ctx.obj.tempdir = ctx.with_resource(misc.mkdir(keep=keep))
@@ -175,13 +178,13 @@ def main(ctx, source, sources_dir, tests_dir, verbose, quiet, keep):
     if retcode:
         msgs = []
         msgs.append("cmd:")
-        msgs.append(f"|  {' '.join(result['cmd'])}")
+        msgs.append(f"|  {' '.join(result['cmd'])}")  # type: ignore
         log.warning("failed to run tests")
         log.warning("\n".join(msgs))
-        if result["stderr"].strip():
-            log.warning("stderr:\n%s", misc.indent(result["stderr"], "|  "))
-        if result["stdout"].strip():
-            log.warning("stdout:\n%s", misc.indent(result["stdout"], "|  "))
+        if result["stderr"].strip():  # type: ignore
+            log.warning("stderr:\n%s", misc.indent(result["stderr"], "|  "))  # type: ignore
+        if result["stdout"].strip():  # type: ignore
+            log.warning("stdout:\n%s", misc.indent(result["stdout"], "|  "))  # type: ignore
 
     if keep:
         log.warning("preserving dir %s", ctx.obj.tempdir)

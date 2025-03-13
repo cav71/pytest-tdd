@@ -1,6 +1,8 @@
 from __future__ import annotations
 import os
 import collections
+import sys
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -31,6 +33,49 @@ src/package1/subpackageB/modD.py
 xyz/abc/
 """
 
+EXPECTED = """\
+/
+├── package2/
+│== ├── __init__.py
+│== ├── modF.py
+│== ├── subpackageC/
+│== │== └── modG.py
+│== └── subpackageD/
+│==     ├── modH.py
+│==     └── tests/
+│==         └── test_modD.py
+├── src/
+│== └── package1/
+│==     ├── __init__.py
+│==     ├── modA.py
+│==     ├── modB.py
+│==     ├── subpackageA/
+│==     │== ├── __init__.py
+│==     │== └── modC.py
+│==     └── subpackageB/
+│==         ├── __init__.py
+│==         ├── modD.py
+│==         ├── modE.py
+│==         └── tests/
+│==             └── test_modD.py
+├── tests/
+│== ├── package1/
+│== │== ├── subpackageB/
+│== │== │== └── test_modC.py
+│== │== └── test_modA.py
+│== ├── subpackageC/
+│== │== └── test_modG.py
+│== ├── test_modD.py
+│== └── test_modG.py
+├── xyz/
+│== └── abc/
+└── zoo/
+    └── bar/
+        └── xxx
+"""
+
+
+
 def counting(root: ptree.Node) -> dict[ptree.Kind, int]:
     counters = { ptree.Kind.DIR: 0,
                  ptree.Kind.FILE: 0
@@ -45,8 +90,12 @@ def counting(root: ptree.Node) -> dict[ptree.Kind, int]:
     return counters
 
 
+def getfiles(path: Path) -> list[Path]:
+    return list(sorted(p.relative_to(path) for p in path.rglob("*")))
+
+
 def test_mktree_fixture(mktree):
-    "create a dir tree (internal)"
+    """create a dir tree (internal)"""
     dstdir = mktree(TREE)
 
     assert (dstdir / "package2/modF.py").exists()
@@ -137,21 +186,14 @@ def test_find(mktree, pretty):
 
 
 def test_write(mktree):
+    """write a dir tree"""
     srcdir = mktree(TREE, subpath="src")
     dstdir = srcdir.parent / "dst"
 
     root = ptree.create(srcdir)
-    left = list(sorted({
-        (path.relative_to(srcdir), path.is_dir())
-        for path in srcdir.rglob("*")
-    }))
-
     ptree.write(dstdir, root)
-    right = list(sorted({
-        (path.relative_to(dstdir), path.is_dir())
-        for path in dstdir.rglob("*")
-    }))
-    assert left == right
+
+    assert getfiles(srcdir) == getfiles(dstdir)
 
 
 def test_dumps(mktree):
@@ -168,63 +210,26 @@ def test_dumps(mktree):
         ptree.Kind.FILE: 20
     }
 
-    assert ptree.dumps(root, nbs=" ") == """\
-/
-├── package2/
-│   ├── __init__.py
-│   ├── modF.py
-│   ├── subpackageC/
-│   │   └── modG.py
-│   └── subpackageD/
-│       ├── modH.py
-│       └── tests/
-│           └── test_modD.py
-├── src/
-│   └── package1/
-│       ├── __init__.py
-│       ├── modA.py
-│       ├── modB.py
-│       ├── subpackageA/
-│       │   ├── __init__.py
-│       │   └── modC.py
-│       └── subpackageB/
-│           ├── __init__.py
-│           ├── modD.py
-│           ├── modE.py
-│           └── tests/
-│               └── test_modD.py
-├── tests/
-│   ├── package1/
-│   │   ├── subpackageB/
-│   │   │   └── test_modC.py
-│   │   └── test_modA.py
-│   ├── subpackageC/
-│   │   └── test_modG.py
-│   ├── test_modD.py
-│   └── test_modG.py
-├── xyz/
-│   └── abc/
-└── zoo/
-    └── bar/
-        └── xxx
-"""
+    assert ptree.dumps(root, nbs=" ") == EXPECTED.replace("=", " ")
     assert not (srcdir / "zoo" / "bar").exists()
     (srcdir / "zoo" / "bar").mkdir(parents=True, exist_ok=True)
     (srcdir / "zoo" / "bar" / "xxx").write_text("")
-    return srcdir, ptree.dumps(root, nbs="\u00A0")
+    assert ptree.dumps(root, nbs="=") == EXPECTED
 
 
-@pytest.mark.skipif(os.name != "posix", reason=f"requires posix, not {os.name}")
+@pytest.mark.skipif(sys.platform != "linux", reason=f"requires linux, not {os.name}")
 @mock.patch.dict(os.environ, {"LOCAL": "1"})
 def test_dumps_unix(mktree):
     from subprocess import check_output
 
-    srcdir, found = test_dumps(mktree)
+    srcdir = mktree(TREE, subpath="src")
+    expected = ptree.dumps(ptree.create(srcdir), nbs="\u00A0")
 
     # skip the initial and final lines
-    expected = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
-    expected = "\n".join(expected.strip().split("\n")[1:-1])
-    assert found[2:] == expected
+    found = check_output(["tree", "-aF", str(srcdir)], encoding="utf-8")
+    # chopping the first and last lines
+    found = "/\n" + "\n".join(found[:-2].split("\n")[1:-1])
+    assert found == expected
 
 
 def test_parse():
