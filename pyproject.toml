@@ -47,6 +47,7 @@ dev = [
     "pytest-print",
     "pytest-cov",
     "pytest-html",
+    "pre-commit",
     "ruff",
 ]
 
