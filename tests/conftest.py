@@ -2,7 +2,7 @@ from __future__ import annotations
 import dataclasses as dc
 from contextlib import _GeneratorContextManager
 from pathlib import Path
-from typing import Callable, Generator, TYPE_CHECKING
+from typing import Callable, Generator, TYPE_CHECKING, Never, Iterator
 
 import pytest
 
@@ -66,8 +66,8 @@ def pretty(create_pretty_printer: PrettyPrinterFactory) -> Callable[[str], _Gene
     printer = create_pretty_printer(formatter=formatter)
 
     @contextmanager
-    def message(msg: str) -> Generator[None, None,None]:
+    def message(msg: str) -> Generator[None, None, None]:
         printer(msg)
         yield
-   
+
     return message
