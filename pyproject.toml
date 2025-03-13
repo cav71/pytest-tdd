@@ -41,10 +41,12 @@ docs = [
     "sphinx-book-theme",
 ]
 
-tests = [
+dev = [
+    "mypy",
     "pytest-print",
     "pytest-cov",
     "pytest-html",
+    "ruff",
 ]
 
 

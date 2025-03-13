@@ -41,7 +41,7 @@ jobs:
         run: |
             python -m pip install --upgrade pip
             pip install setuptools build wheel twine
-            pip install .[tests,docs]
+            pip install .[dev,docs]
 
 #       - name: Lint checks (ruff)
 #         shell: bash
