@@ -42,6 +42,7 @@ docs = [
 ]
 
 dev = [
+    "lxml",
     "mypy",
     "pytest-print",
     "pytest-cov",
