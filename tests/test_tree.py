@@ -214,8 +214,8 @@ def test_dumps(mktree):
     return srcdir, ptree.dumps(root, nbs="\u00A0")
 
 
-#@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
-@mock.patch.dict(os.environ, {"FROBNICATION_COLOUR": "ROUGE"})
+@pytest.mark.skipif(os.name != "posix", reason=f"requires posix, not {os.name}")
+@mock.patch.dict(os.environ, {"LOCAL": "1"})
 def test_dumps_unix(mktree):
     from subprocess import check_output
 
