@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, IO, Generator
+from types import ModuleType
+from typing import Any, IO, Generator, Protocol
 from pathlib import Path
 
 
@@ -104,7 +105,7 @@ def rstrip(txt: str, starting: str | list[str]) -> str:
     Raises:
         None
 
-    Example usage:
+    Example:
         >>> rstrip('Hello World!', '!')
         'Hello World'
         >>> rstrip('Python is great', ['is', 'at'])
@@ -153,7 +154,30 @@ def loadmod(path: Path, name: str | None = None) -> Any:
     return module
 
 
-def get_doc(src: Path | IO, pre: str | None = None) -> str | None:
+def get_doc(src: str | Path, pre: str | None = None) -> str | None:
+    """
+    Parses the source code provided as a Path or a string and extract the
+    main __doc__ string (optionaly prepending pre to the output).
+
+    Args:
+        src: A Path object pointing to the source file or a string
+            containing the Python source code as a string. The source code
+            is parsed to extract its docstring.
+        pre: A string that will be prepended to each line of the retrieved
+            docstring. If None, the original docstring is returned without
+            any modification.
+
+    Returns:
+        The extracted docstring as a string if it exists in the provided source
+        code. If no docstring is found, it returns None. When a prefix string
+        is provided, it returns the docstring with the prefix prepended to
+        each line.
+
+    Example:
+        >>> get_doc(Path('/a/b/c.py'), '!')
+        '!!The content of __doc__
+        '!!with multiline'
+    """
     from ast import parse, NodeVisitor, get_docstring
 
     class Visitor(NodeVisitor):

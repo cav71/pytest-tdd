@@ -32,6 +32,22 @@ dependencies = [
     "pytest-coverage",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-tabs",
+    "sphinx-design",
+    "myst-parser",
+    "sphinx-book-theme",
+]
+
+tests = [
+    "pytest-print",
+    "pytest-cov",
+    "pytest-html",
+]
+
+
 [project.urls]
 Homepage = "https://github.com/cav71/pytest-tdd"
 Documentation = "https://github.com/cav71/pytest-tdd"

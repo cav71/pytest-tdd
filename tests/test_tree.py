@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import collections
+from unittest import mock
 
 import pytest
 
@@ -80,17 +81,17 @@ def test_create(mktree):
     #   print(check_output(["tree", "-aF", str(dstdir)], encoding="utf-8"))
 
 
-def test_find(mktree, subtests):
+def test_find(mktree, pretty):
     dstdir = mktree(TREE)
     root = ptree.create(dstdir)
 
-    with subtests.test(msg="initial-check"):
+    with pretty(msg="initial-check"):
         assert counting(root) == {
             ptree.Kind.DIR: 16,  # it includes the root node
             ptree.Kind.FILE: 19
         }
 
-    with subtests.test(msg="find-an-existing-path"):
+    with pretty(msg="find-an-existing-path"):
         node = ptree.find(root, "package2/subpackageD/tests/test_modD.py")
         assert node.xpath == [
             "", "package2", "subpackageD", "tests", "test_modD.py"
@@ -101,10 +102,10 @@ def test_find(mktree, subtests):
             ptree.Kind.FILE: 19
         }
 
-    with subtests.test(msg="find-a-non-existing-root-dir"):
+    with pretty(msg="find-a-non-existing-root-dir"):
         assert ptree.find(root, "booo/") is None
 
-    with subtests.test(msg="find-and-add-a-non-existing-root-dir"):
+    with pretty(msg="find-and-add-a-non-existing-root-dir"):
         node = ptree.find(root,"booo/", create=True)
         assert node.xpath == ["", "booo"]
         assert counting(root) == {
@@ -112,10 +113,10 @@ def test_find(mktree, subtests):
             ptree.Kind.FILE: 19
         }
 
-    with subtests.test(msg="find-a-non-existing-dir"):
+    with pretty(msg="find-a-non-existing-dir"):
         assert ptree.find(root, "zoo/bar/") is None
 
-    with subtests.test(msg="find-and-add-a-non-existing-dir"):
+    with pretty(msg="find-and-add-a-non-existing-dir"):
         node = ptree.find(root,"zoo/bar/", create=True)
         assert node.xpath == ["", "zoo", "bar"]
         assert counting(root) == {
@@ -123,10 +124,10 @@ def test_find(mktree, subtests):
             ptree.Kind.FILE: 19
         }
 
-    with subtests.test(msg="find-a-non-existing-file"):
+    with pretty(msg="find-a-non-existing-file"):
         assert ptree.find(root, "zoo/bar/xxx") is None
 
-    with subtests.test(msg="find-and-add-a-non-existing-file"):
+    with pretty(msg="find-and-add-a-non-existing-file"):
         node = ptree.find(root,"zoo/bar/xxx", create=True)
         assert node.xpath == ["", "zoo", "bar", "xxx"]
         assert counting(root) == {
@@ -213,7 +214,8 @@ def test_dumps(mktree):
     return srcdir, ptree.dumps(root, nbs="\u00A0")
 
 
-@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
+#@pytest.mark.skipif(os.getenv("LOCAL") != "1", reason="set LOCAL=1 to run this test")
+@mock.patch.dict(os.environ, {"FROBNICATION_COLOUR": "ROUGE"})
 def test_dumps_unix(mktree):
     from subprocess import check_output
 
@@ -272,7 +274,7 @@ def test_parse():
 
 def test_roundtrip(mktree):
     def getfiles(path):
-        return list(p.relative_to(path) for p in path.rglob("*"))
+        return list(sorted(p.relative_to(path) for p in path.rglob("*")))
 
     # create a fs tree under srcdir
     leftdir = mktree(TREE, subpath="left")

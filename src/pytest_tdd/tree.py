@@ -1,7 +1,58 @@
 # # tree -aF layouts/my-project
+"""Implementation of a directory tree structure.
+
+This module provides a simple implementation of a directory tree structure.
+It allows you to:
+
+    - create a tree instance out of a directory (`create`)
+    - to find a node in the tree structure (`find`)
+    - to dump the tree structure to a string (`dumps`, similar ro the
+      `tree -aF` command in Linux)
+    - to write the tree structure to a directory (`write`)
+    - to plot the tree structure using graphviz
+
+The TL;DR is::
+
+    # generate a tree out of a path
+    >>> root = tree.create(Path("src"))
+
+    # prints the tree structure (same as `tree -aF`)
+    >>> print(tree.dumps(root, nbs="\\\\u00A0"))
+    /
+    └── pytest_tdd/
+        ├── __init__.py
+        ├── __pycache__/
+        │   ├── __init__.cpython-313.pyc
+        │   ├── misc.cpython-313.pyc
+        │   ├── script.cpython-313.pyc
+        │   ├── tdd.cpython-313.pyc
+        │   └── tree.cpython-313.pyc
+        ├── misc.py
+        ├── script.py
+        ├── tdd.py
+        └── tree.py
+
+    # round trip!
+    >>> assert tree.dumps(tree.parse(tree.dumps(root))) == tree.dumps(root)
+
+    # find a node in the tree structure and print it
+    >>> node = tree.find(root, ['pytest_tdd', '__pycache__'])
+    >>> print(tree.dumps(node, nbs="\\\\u00A0"))
+    __pycache__/
+    ├── __init__.cpython-313.pyc
+    ├── misc.cpython-313.pyc
+    ├── script.cpython-313.pyc
+    ├── tdd.cpython-313.pyc
+    └── tree.cpython-313.pyc
+
+    # write the tree structure under `tmp` directory
+    >>> tree.write(Path("tmp"), node)
+
+"""
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import io
 import collections
@@ -76,7 +127,7 @@ class Node:
         return Path(*self.xpath)
 
 
-def create(path: Path) -> Node:
+def create(path: Path | str) -> Node:
     """
     Generates a tree out of path directory.
 
@@ -89,7 +140,14 @@ def create(path: Path) -> Node:
     Raises:
         InvalidNodeType: If the specified path is not a directory.
 
+    Examples:
+
+        To generate a tree out of a directory::
+
+            >>> tree.create(Path("somedir"))
+            Node(name='somedir', ...)
     """
+    path : Path = Path(path)
     if not path.is_dir():
         raise InvalidNodeType("path is not a directory", path)
 
@@ -112,7 +170,28 @@ def create(path: Path) -> Node:
 
 
 def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
-    """find a node starting from root tree"""
+    """
+    Find a node starting from root tree.
+
+    Args:
+        root: parsed tree root node
+        loc: lookup for a node starting from root tree, can be a string or a list of strings.
+        create: if `loc` does not exist in the tree, create it if `create` is True, otherwise return None.
+
+    Returns:
+        node pointing to the location if found, otherwise None.
+
+    Examples:
+
+        To lookup for a path::
+
+            >>> find(root, ['a', 'b', 'c'])
+            None # if the a/b/c does not exist in the tree
+
+            >>> find(root, ['a', 'b', 'c'], create=True)
+            Node(name='c', ...)
+
+    """
     if isinstance(loc, str):
         lloc = collections.deque(loc.rstrip("/").split("/"))
         if loc.endswith("/"):
@@ -147,8 +226,20 @@ def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
     return cur
 
 
-def write(path: Path, root: Node) -> None:
-    # TODO implement this
+def write(path: Path | str, root: Node) -> None:
+    """
+    Writes a tree structure under path.
+
+    The function iteratively processes the given root node and its children
+    generating a filesystem dump of `root`.
+
+    Args:
+        path: The base directory where the tree structure will be created.
+        root: The root node of the tree structure to be written, which determines the
+            hierarchy of files and directories to be generated.
+    """
+    path: Path = Path(path)
+
     if not path.exists():
         path.mkdir(parents=True, exist_ok=True)
 
@@ -167,6 +258,22 @@ def write(path: Path, root: Node) -> None:
 
 
 def dumps(root: Node, nbs: str = " ") -> str:
+    """
+    Returns a string representation of the tree structure.
+
+    The string representation consists of a tree structure
+    with each node represented by a line: this is equivalent to the
+    output of the `tree -aF` command uf nbs is "\\\\u00A0".
+
+    Args:
+        root: the root node of the tree structure
+        nbs: the string used to represent the indentation of
+             the nodes in the tree structure.
+
+    Returns:
+        The string representation of the tree structure.
+
+    """
     # use nbs="\u00A0" when comparing tree -aF
 
     buffer = io.StringIO()
@@ -266,7 +373,7 @@ def showtree(root: Node) -> None:  # pragma: no cover
     from tempfile import NamedTemporaryFile
     from subprocess import check_call, call
 
-    if sys.platform != "darwin":
+    if sys.platform not in {"linux", "darwin"}:
         raise NotImplementedError(f"cannot use this on {sys.platform}")
 
     buffer = plot(root, io.StringIO())
@@ -279,22 +386,43 @@ def showtree(root: Node) -> None:  # pragma: no cover
         pngout = stack.enter_context(NamedTemporaryFile(suffix=".png"))
         dotout.write(txt.encode("utf-8"))
         dotout.flush()
+        if not (exe := shutil.which("dot")):
+            raise FileNotFoundError("cannot find dot executable, install graphviz")
         cmd = [
-            Path(sys.executable).parent / "dot",
+            exe,
             "-Tpng",
             f"-o{pngout.name}",
             dotout.name,
         ]
         check_call([str(c) for c in cmd])
         pngout.file.flush()
-        call(["open", pngout.name])
+        if sys.platform == "darwin":
+            call(["open", pngout.name])
+        elif sys.platform == "linux":
+            call(["xdg-open", pngout.name])
         sleep(1)
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--copy", type=Path, help="destination directory")
+    class F(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+        pass
+
+    parser = argparse.ArgumentParser(
+        formatter_class=F,
+        description="parse srcdir into a tree structure",
+        epilog="""
+walks the srcdir and creates a tree structure applying some operations:
+
+  --into dumps the tree structure into a new directory
+  --display dumps the tree structure into png file using graphviz
+  --graphviz dumps the tree structure into a dot file
+  
+ """)
     parser.add_argument("srcdir", type=Path, help="source directory")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-i", "--into", type=Path, help="destination directory")
+    group.add_argument("--graphviz", action="store_true", help="write the structure to a png file")
+    group.add_argument("--display", action="store_true", help="write the structure to a png file")
     args = parser.parse_args()
 
     if not args.srcdir.exists():
@@ -303,11 +431,16 @@ def main():
         parser.error(f"path is not a dir, {args.srcdir}")
 
     root = create(args.srcdir)
-    if args.copy:
-        write(args.copy, root)
 
-    root.name = args.srcdir
-    print(dumps(root))
+    if args.into:
+        write(args.into, root)
+    elif args.graphviz:
+        print(plot(root))
+    elif args.display:
+        showtree(root)
+    else:
+        root.name = args.srcdir
+        print(dumps(root))
 
 
 if __name__ == "__main__":

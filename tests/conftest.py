@@ -46,3 +46,18 @@ def resolver(request):
         Path(__file__).parent / "data",
         request.module.__name__)
 
+
+@pytest.fixture(scope="session")
+def pretty(create_pretty_printer: PrettyPrinterFactory) -> PrettyPrinter:
+    from pytest_print import Formatter
+    from contextlib import contextmanager
+    formatter = Formatter(indentation="  ", head=" ", space=" ", icon="⏩", timer_fmt="[{elapsed:.20f}]")
+
+    printer = create_pretty_printer(formatter=formatter)
+
+    @contextmanager
+    def message(msg):
+        printer(msg)
+        yield
+   
+    return message
