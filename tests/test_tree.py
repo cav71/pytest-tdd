@@ -1,6 +1,7 @@
 from __future__ import annotations
-import os
+
 import collections
+import os
 import sys
 from pathlib import Path
 from unittest import mock
@@ -8,7 +9,6 @@ from unittest import mock
 import pytest
 
 from pytest_tdd import tree as ptree
-
 
 TREE = """
 package2/modF.py
@@ -75,9 +75,8 @@ EXPECTED = """\
 """
 
 
-
 def counting(root: ptree.Node) -> dict[ptree.Kind, int]:
-    counters = { ptree.Kind.DIR: 0,
+    counters = {ptree.Kind.DIR: 0,
                  ptree.Kind.FILE: 0
     }
     queue = collections.deque([root])
@@ -91,7 +90,7 @@ def counting(root: ptree.Node) -> dict[ptree.Kind, int]:
 
 
 def getfiles(path: Path) -> list[Path]:
-    return list(sorted(p.relative_to(path) for p in path.rglob("*")))
+    return sorted(p.relative_to(path) for p in path.rglob("*"))
 
 
 def test_mktree_fixture(mktree):
@@ -155,7 +154,7 @@ def test_find(mktree, pretty):
         assert ptree.find(root, "booo/") is None
 
     with pretty(msg="find-and-add-a-non-existing-root-dir"):
-        node = ptree.find(root,"booo/", create=True)
+        node = ptree.find(root, "booo/", create=True)
         assert node.xpath == ["", "booo"]
         assert counting(root) == {
             ptree.Kind.DIR: 17,  # it includes the root node
@@ -166,7 +165,7 @@ def test_find(mktree, pretty):
         assert ptree.find(root, "zoo/bar/") is None
 
     with pretty(msg="find-and-add-a-non-existing-dir"):
-        node = ptree.find(root,"zoo/bar/", create=True)
+        node = ptree.find(root, "zoo/bar/", create=True)
         assert node.xpath == ["", "zoo", "bar"]
         assert counting(root) == {
             ptree.Kind.DIR: 19,  # it includes the root node
@@ -177,7 +176,7 @@ def test_find(mktree, pretty):
         assert ptree.find(root, "zoo/bar/xxx") is None
 
     with pretty(msg="find-and-add-a-non-existing-file"):
-        node = ptree.find(root,"zoo/bar/xxx", create=True)
+        node = ptree.find(root, "zoo/bar/xxx", create=True)
         assert node.xpath == ["", "zoo", "bar", "xxx"]
         assert counting(root) == {
             ptree.Kind.DIR: 19,  # it includes the root node
@@ -279,7 +278,7 @@ def test_parse():
 
 def test_roundtrip(mktree):
     def getfiles(path):
-        return list(sorted(p.relative_to(path) for p in path.rglob("*")))
+        return sorted(p.relative_to(path) for p in path.rglob("*"))
 
     # create a fs tree under srcdir
     leftdir = mktree(TREE, subpath="left")
@@ -315,5 +314,5 @@ def test_conftest(mktree):
     assert (root.name, root.kind) == ("", ptree.Kind.DIR)
     assert counting(root) == {
         ptree.Kind.FILE: 2,
-        ptree.Kind.DIR: 4+1,
+        ptree.Kind.DIR: 4 + 1,
     }

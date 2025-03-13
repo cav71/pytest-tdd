@@ -1,5 +1,6 @@
 # # tree -aF layouts/my-project
-"""Implementation of a directory tree structure.
+"""
+Implementation of a directory tree structure.
 
 This module provides a simple implementation of a directory tree structure.
 It allows you to:
@@ -52,12 +53,12 @@ The TL;DR is::
 from __future__ import annotations
 
 import argparse
-import shutil
-import sys
-import io
 import collections
 import dataclasses as dc
 import enum
+import io
+import shutil
+import sys
 from pathlib import Path
 from typing import TextIO
 
@@ -141,11 +142,11 @@ def create(path: Path | str) -> Node:
         InvalidNodeType: If the specified path is not a directory.
 
     Examples:
-
         To generate a tree out of a directory::
 
             >>> tree.create(Path("somedir"))
             Node(name='somedir', ...)
+
     """
     src = Path(path)
     if not src.is_dir():
@@ -182,7 +183,6 @@ def find(root: Node, loc: str | list[str], create: bool = False) -> Node | None:
         node pointing to the location if found, otherwise None.
 
     Examples:
-
         To lookup for a path::
 
             >>> find(root, ['a', 'b', 'c'])
@@ -237,6 +237,7 @@ def write(path: Path | str, root: Node) -> None:
         path: The base directory where the tree structure will be created.
         root: The root node of the tree structure to be written, which determines the
             hierarchy of files and directories to be generated.
+
     """
     dstdir = Path(path)
 
@@ -368,10 +369,10 @@ def plot(root: Node, buffer: TextIO = sys.stdout) -> TextIO:
 
 
 def showtree(root: Node) -> None:  # pragma: no cover
-    from time import sleep
     from contextlib import ExitStack
+    from subprocess import call, check_call
     from tempfile import NamedTemporaryFile
-    from subprocess import check_call, call
+    from time import sleep
 
     if sys.platform not in {"linux", "darwin"}:
         raise NotImplementedError(f"cannot use this on {sys.platform}")

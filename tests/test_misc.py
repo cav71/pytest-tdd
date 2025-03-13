@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pytest_tdd import misc
 
 
@@ -36,7 +38,7 @@ def test_list_of_paths():
 def test_strisp():
     assert misc.lstrip("/a/b/c/d/e", "/a/b") == "/c/d/e"
     assert misc.rstrip("/a/b/c/d/e", "/d/e") == "/a/b/c"
-    assert misc.strip("/a/b/c/d/e", [ "/a/b", "/d/e"]) == "/c"
+    assert misc.strip("/a/b/c/d/e", ["/a/b", "/d/e"]) == "/c"
 
 
 def test_loadmod():
@@ -82,6 +84,7 @@ def test_mkdir(tmp_path):
         assert tdir.exists()
     assert not tdir.exists()
 
+
 def test_mkdir_failure(tmp_path):
     try:
         with misc.mkdir(tmp_path / "testdir") as tdir:
@@ -92,5 +95,3 @@ def test_mkdir_failure(tmp_path):
         assert tdir.exists()
         tdir.rmdir()
     assert not tdir.exists()
-
-

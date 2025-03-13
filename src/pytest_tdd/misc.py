@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import contextlib
-from types import ModuleType
-from typing import Any, IO, Generator, Protocol
 from pathlib import Path
+from typing import Any, Generator
 
 
 def indent(txt: str, pre: str = " " * 2) -> str:
@@ -18,7 +17,6 @@ def indent(txt: str, pre: str = " " * 2) -> str:
         str: The indented text.
 
     """
-
     from textwrap import dedent
 
     txt = dedent(txt)
@@ -34,6 +32,9 @@ def indent(txt: str, pre: str = " " * 2) -> str:
 
 def list_of_paths(paths: str | Path | list[str | Path] | None) -> list[Path]:
     """
+
+    Make paths a list of Path objects, if needed.
+
     Args:
         paths: A string, a Path object, a list of strings or Path objects, or None.
 
@@ -57,6 +58,7 @@ def list_of_paths(paths: str | Path | list[str | Path] | None) -> list[Path]:
 
         >>> list_of_paths(['/path1/file1.txt', '/path2/file2.txt'])
         [Path('/path1/file1.txt'), Path('/path2/file2.txt')]
+
     """
     if not paths:
         return []
@@ -65,6 +67,8 @@ def list_of_paths(paths: str | Path | list[str | Path] | None) -> list[Path]:
 
 def lstrip(txt: str, ending: str | list[str]) -> str:
     """
+    Left strips endings (a list of strings) from the beginning of txt.
+
     Args:
         txt: A string that needs to be stripped.
         ending: Either a string or a list of strings
@@ -83,6 +87,7 @@ def lstrip(txt: str, ending: str | list[str]) -> str:
         'Hello World'
         >>> lstrip("Hello World", ["Hello", "Hi"])
         ' World'
+
     """
     endings = ending if isinstance(ending, list) else [ending]
     for left in endings:
@@ -92,6 +97,8 @@ def lstrip(txt: str, ending: str | list[str]) -> str:
 
 def rstrip(txt: str, starting: str | list[str]) -> str:
     """
+    Right strips endings (a list of strings) from the beginning of txt.
+
     Args:
         txt (str): The input text to be stripped.
         starting (str | list[str]): A string or a list of strings
@@ -110,6 +117,7 @@ def rstrip(txt: str, starting: str | list[str]) -> str:
         'Hello World'
         >>> rstrip('Python is great', ['is', 'at'])
         'Python is gre'
+
     """
     startings = starting if isinstance(starting, list) else [starting]
     for right in startings:
@@ -119,6 +127,8 @@ def rstrip(txt: str, starting: str | list[str]) -> str:
 
 def strip(txt: str, sub: str | list[str]) -> str:
     """
+    Strip endings (a list of strings) from the beginning/ending of txt.
+
     Args:
         txt: A string value representing the input text to be stripped.
         sub: A string or a list of strings to be removed from the input text.
@@ -132,7 +142,7 @@ def strip(txt: str, sub: str | list[str]) -> str:
 
 def loadmod(path: Path, name: str | None = None) -> Any:
     """
-    Loads a module from path.
+    Load a module from path.
 
     Args:
         path: The path to the module file that needs to be loaded.
@@ -156,8 +166,10 @@ def loadmod(path: Path, name: str | None = None) -> Any:
 
 def get_doc(src: str | Path, pre: str | None = None) -> str | None:
     """
-    Parses the source code provided as a Path or a string and extract the
-    main __doc__ string (optionaly prepending pre to the output).
+    Extract the doc string from source code.
+
+    This takes a src (either str or Path), reads the code (non executing it) and
+    extract the main __doc__ string (optionaly prepending pre to the output).
 
     Args:
         src: A Path object pointing to the source file or a string
@@ -177,8 +189,9 @@ def get_doc(src: str | Path, pre: str | None = None) -> str | None:
         >>> get_doc(Path('/a/b/c.py'), '!')
         '!!The content of __doc__
         '!!with multiline'
+
     """
-    from ast import parse, NodeVisitor, Module, get_docstring
+    from ast import Module, NodeVisitor, get_docstring, parse
 
     class Visitor(NodeVisitor):
         def __init__(self) -> None:
@@ -204,9 +217,9 @@ def get_doc(src: str | Path, pre: str | None = None) -> str | None:
 
 @contextlib.contextmanager
 def mkdir(path: Path | None = None, keep: bool = False) -> Generator[Path, None, None]:
-    from tempfile import mkdtemp
-    from shutil import rmtree
     from os import makedirs
+    from shutil import rmtree
+    from tempfile import mkdtemp
 
     tmpdir = path or mkdtemp()
     try:

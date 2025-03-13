@@ -3,17 +3,19 @@
 #   def test_from_comments():
 
 from __future__ import annotations
-import os
+
 import json
+import os
 import subprocess
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 
 def lookup_candidates(
     source: Path, sources_dir: Path, tests_dir: Path, sibling_testdir: bool = True
 ) -> list[Path]:
-    """returna  list of test candidates for source
+    """
+    Returna  list of test candidates for source
 
     :param source: the module to look tests for
     :param sources_dir: where the sources are rooted

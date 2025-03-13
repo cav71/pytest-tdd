@@ -1,4 +1,5 @@
-"""given a python module execute related tests.
+"""
+given a python module execute related tests.
 
 Example:
     $> pytest-tdd \\
@@ -10,21 +11,22 @@ Example:
     This will look up (and run if found) the following tests:
     - tests/mylibrary/subdir/test_hello.py
     - tests/test_hello.py
+
 """
 from __future__ import annotations
-import os
-import sys
-import logging
-import subprocess
-import json
-import dataclasses as dc
-from typing import Any
-import xml.etree.ElementTree as ET
 
+import dataclasses as dc
+import json
+import logging
+import os
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
+
 import click
 from click.core import Context
-
 
 from pytest_tdd import misc, tdd
 
@@ -131,7 +133,6 @@ def compute(source: Path, result: dict[str, Any]) -> str:
 @click.option("-k", "--keep", is_flag=True, help="keep results on error")
 @click.pass_context
 def main(ctx: Context, source: Path, sources_dir: Path, tests_dir: Path, verbose: int, quiet: int, keep: bool) -> int:
-    breakpoint()
     level = min(max(verbose - quiet, -1), 1)
     logging.basicConfig(
         level=logging.DEBUG

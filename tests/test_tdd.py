@@ -1,11 +1,13 @@
-import os
+from __future__ import annotations
+
 import functools
 import json
-from pathlib import Path
+import os
 import textwrap
+import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from pytest_tdd import tdd
-import xml.etree.ElementTree as ET
 
 
 def _project_simple(mktree):
